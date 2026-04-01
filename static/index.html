@@ -1,0 +1,2782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DataPrep Engine — AI-Powered Preprocessing</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+/* ════════════════════════════════════════════
+   DataPrep Engine — styles.css
+   Professional light-cream UI with orange/ask/red/black accents
+   ════════════════════════════════════════════ */
+
+:root {
+  --cream:        #faf6f0;
+  --cream-dark:   #f2ebe0;
+  --cream-mid:    #ede6d8;
+  --cream-border: #ddd3c0;
+
+  --orange:       #e8620a;
+  --orange-hover: #c9510a;
+  --orange-light: #f07a2a;
+  --orange-pale:  #fff3ec;
+  --orange-mid:   #fde4cc;
+
+  --ask:          #1a4a8a;
+  --ask-hover:    #153d73;
+  --ask-pale:     #e8f0fb;
+  --ask-mid:      #c5d8f5;
+
+  --black:        #1a1208;
+  --black-mid:    #2e2010;
+  --black-light:  #5a4a35;
+
+  --red:          #c0160f;
+  --red-hover:    #a01208;
+  --red-pale:     #ffeaea;
+  --red-mid:      #fcc8c8;
+
+  --green:        #1a7a3c;
+  --green-pale:   #e6f4ec;
+  --green-mid:    #b8e6cc;
+
+  --gold:         #b07a10;
+  --gold-pale:    #fdf5d8;
+
+  --text:         #2c2010;
+  --text-mid:     #5a4a35;
+  --text-light:   #8a7a65;
+
+  --shadow-sm:    0 1px 4px rgba(30,15,0,0.08);
+  --shadow-md:    0 4px 16px rgba(30,15,0,0.10);
+  --shadow-lg:    0 8px 32px rgba(30,15,0,0.13);
+  --shadow-xl:    0 16px 48px rgba(30,15,0,0.16);
+
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    16px;
+
+  --transition:   all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 8% 0%, rgba(232,98,10,0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 92% 100%, rgba(26,74,138,0.05) 0%, transparent 45%);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream-dark); }
+::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+/* ════════════════ HEADER ════════════════ */
+header {
+  height: 64px;
+  background: linear-gradient(135deg, #1a1208 0%, #2e1c08 60%, #1a1208 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.30), 0 1px 0 rgba(232,98,10,0.3);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  gap: 20px;
+}
+
+.header-left { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+
+.brand-icon {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--orange), var(--orange-light));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px rgba(232,98,10,0.50), 0 2px 8px rgba(0,0,0,0.3);
+  animation: gear-pulse 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes gear-pulse {
+  0%,100% { box-shadow: 0 0 20px rgba(232,98,10,0.50); }
+  50%      { box-shadow: 0 0 32px rgba(232,98,10,0.80); }
+}
+
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 19px; font-weight: 700;
+  color: #fff; letter-spacing: 0.3px;
+}
+.brand-name .orange { color: var(--orange-light); }
+.brand-sub {
+  font-size: 9px; color: #a09070;
+  letter-spacing: 2.5px; text-transform: uppercase; margin-top: 1px;
+}
+
+.header-center { flex: 1; display: flex; justify-content: center; }
+.pipeline-mini {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 7px 18px; border-radius: 40px;
+}
+.pm-step {
+  font-size: 11px; font-weight: 500; color: #6a5a45;
+  letter-spacing: 0.5px; transition: var(--transition);
+  cursor: default; padding: 1px 4px; border-radius: 4px;
+}
+.pm-step.active { color: var(--orange-light); font-weight: 700; }
+.pm-step.done   { color: #6abf87; }
+.pm-arrow       { color: #3a3028; font-size: 14px; }
+
+.header-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+
+.status-indicator {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: #a09070; letter-spacing: 0.5px;
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.idle    { background: #4a9a5a; box-shadow: 0 0 6px rgba(74,154,90,0.6); animation: blink 2.5s infinite; }
+.status-dot.loading { background: var(--orange); box-shadow: 0 0 6px rgba(232,98,10,0.7); animation: blink 0.7s infinite; }
+.status-dot.done    { background: #4a9a5a; box-shadow: 0 0 8px rgba(74,154,90,0.7); }
+.status-dot.error   { background: var(--red); box-shadow: 0 0 6px rgba(192,22,15,0.6); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.btn-header {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #c0a88a; font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 500;
+  padding: 7px 14px; border-radius: 6px; cursor: pointer;
+  letter-spacing: 0.3px; transition: var(--transition);
+}
+.btn-header:hover { background: rgba(232,98,10,0.2); border-color: var(--orange); color: var(--orange-light); }
+
+/* ════════════════ LAYOUT ════════════════ */
+.layout-wrapper {
+  display: flex;
+  min-height: calc(100vh - 64px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 290px; flex-shrink: 0;
+  background: #fff;
+  border-right: 1.5px solid var(--cream-border);
+  padding: 22px 18px;
+  overflow-y: auto;
+  max-height: calc(100vh - 64px);
+  position: sticky; top: 64px;
+  box-shadow: 2px 0 16px rgba(30,15,0,0.05);
+}
+
+.sb-section { margin-bottom: 22px; }
+.sb-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding-bottom: 8px; margin-bottom: 12px;
+  border-bottom: 2px solid;
+  display: flex; align-items: center; gap: 7px;
+}
+.sb-title i { font-size: 11px; }
+.orange-title { color: var(--orange); border-color: var(--orange-mid); }
+.red-title    { color: var(--red);    border-color: var(--red-mid); }
+.ask-title    { color: var(--ask);    border-color: var(--ask-mid); }
+.black-title  { color: var(--black);  border-color: var(--cream-mid); }
+.green-title  { color: var(--green);  border-color: var(--green-mid); }
+
+.sb-card {
+  background: var(--cream); border: 1px solid var(--cream-border);
+  border-radius: var(--radius-md); padding: 12px 14px;
+}
+
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid var(--cream-mid);
+  gap: 8px;
+}
+.info-row:last-child { border-bottom: none; }
+.ir-label { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
+.ir-val   { font-size: 11px; color: var(--black); font-weight: 600; text-align: right; word-break: break-all; }
+.ir-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+.ir-val.orange { color: var(--orange); }
+.ir-val.red    { color: var(--red); }
+.ir-val.green  { color: var(--green); }
+.ir-val.ask-bold { color: var(--ask); font-weight: 700; }
+
+/* Quality Gauge */
+.quality-gauge-wrap {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 12px;
+}
+.gauge-label-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  margin-top: -6px;
+}
+.gauge-score { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--orange); line-height: 1; }
+.gauge-rating { font-size: 11px; color: var(--text-light); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+.quality-bars { display: flex; flex-direction: column; gap: 8px; }
+.qb-row { display: flex; align-items: center; gap: 8px; }
+.qb-label { font-size: 10px; color: var(--text-light); width: 80px; flex-shrink: 0; }
+.qb-bar-bg { flex: 1; height: 6px; background: var(--cream-mid); border-radius: 3px; overflow: hidden; }
+.qb-bar { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+.green-bar  { background: linear-gradient(90deg, var(--green), #4abf7a); }
+.ask-bar    { background: linear-gradient(90deg, var(--ask), var(--ask-hover)); }
+.orange-bar { background: linear-gradient(90deg, var(--orange), var(--orange-light)); }
+.qb-pct { font-size: 10px; color: var(--text-mid); font-family: 'JetBrains Mono', monospace; width: 34px; text-align: right; flex-shrink: 0; }
+
+/* Download Buttons */
+.download-card { background: transparent; border: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.btn-download {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-md);
+  border: 1.5px solid; cursor: pointer;
+  transition: var(--transition); width: 100%;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-download:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-download.train  { background: var(--orange-pale); border-color: var(--orange-mid); color: var(--orange); }
+.btn-download.val    { background: var(--ask-pale);    border-color: var(--ask-mid);    color: var(--ask); }
+.btn-download.test   { background: var(--red-pale);    border-color: var(--red-mid);    color: var(--red); }
+.btn-download.train:not(:disabled):hover { background: var(--orange-mid); }
+.btn-download.val:not(:disabled):hover   { background: var(--ask-mid); color: #fff; }
+.btn-download.test:not(:disabled):hover  { background: var(--red-mid); }
+.btn-download > .fa:first-child { font-size: 16px; flex-shrink: 0; }
+.dl-info { display: flex; flex-direction: column; flex: 1; text-align: left; }
+.dl-name { font-size: 12px; font-weight: 600; }
+.dl-size { font-size: 10px; opacity: 0.7; font-family: 'JetBrains Mono', monospace; }
+.dl-arrow { font-size: 12px; flex-shrink: 0; }
+
+.btn-report {
+  width: 100%; margin-top: 10px;
+  padding: 10px 14px; border-radius: var(--radius-md);
+  border: 1.5px solid var(--black-mid);
+  background: var(--cream-dark); color: var(--black);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-report:not(:disabled):hover { background: var(--black); color: #fff; }
+.btn-report:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Log Container */
+.log-container {
+  background: var(--black); border-radius: var(--radius-md);
+  padding: 10px 12px; max-height: 200px; overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+}
+.log-entry {
+  padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  animation: log-in 0.3s ease;
+}
+.log-entry:last-child { border-bottom: none; }
+@keyframes log-in { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }
+.log-entry.step   { color: #f07a2a; }
+.log-entry.info   { color: #8abfff; }
+.log-entry.done   { color: #6abf87; }
+.log-entry.warn   { color: #f0c040; }
+.log-entry.err    { color: #ff7070; }
+
+/* ════════════════ MAIN CONTENT ════════════════ */
+.main-content {
+  flex: 1; padding: 30px 36px;
+  overflow-y: auto; min-width: 0;
+}
+
+.step-panel { display: none; animation: panel-in 0.35s cubic-bezier(0.4,0,0.2,1); }
+.step-panel.active { display: block; }
+@keyframes panel-in { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+/* Panel Header */
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px; flex-wrap: wrap; gap: 14px;
+}
+.panel-title-wrap { display: flex; align-items: center; gap: 16px; }
+.step-badge {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px; font-weight: 900; color: var(--orange-mid);
+  line-height: 1; flex-shrink: 0; letter-spacing: -1px;
+}
+.panel-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px; font-weight: 700; line-height: 1.1;
+}
+.panel-title.orange { color: var(--orange); }
+.panel-sub { font-size: 13px; color: var(--text-light); margin-top: 3px; }
+
+.btn-next {
+  background: linear-gradient(135deg, var(--orange), var(--orange-light));
+  color: #fff; border: none; border-radius: var(--radius-md);
+  padding: 12px 24px; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 16px rgba(232,98,10,0.35);
+  transition: var(--transition); letter-spacing: 0.2px;
+}
+.btn-next:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,98,10,0.45); background: linear-gradient(135deg, var(--orange-hover), var(--orange)); }
+
+/* ── CARDS ── */
+.card {
+  background: #fff; border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg); padding: 22px 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  transition: var(--transition);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.card-title {
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding-bottom: 12px; margin-bottom: 16px;
+  border-bottom: 1.5px solid;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ════════════════ STEP 1: UPLOAD ════════════════ */
+.upload-area {
+  border: 2.5px dashed var(--cream-border);
+  border-radius: var(--radius-lg);
+  padding: 60px 40px;
+  text-align: center;
+  background: var(--cream-dark);
+  transition: var(--transition); cursor: pointer;
+  margin-bottom: 20px;
+}
+.upload-area:hover, .upload-area.drag-over {
+  border-color: var(--orange); background: var(--orange-pale);
+  transform: scale(1.005);
+}
+.upload-icon { font-size: 52px; margin-bottom: 16px; display: block; }
+.upload-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px; color: var(--black); margin-bottom: 8px;
+}
+.upload-sub { font-size: 13px; color: var(--text-light); margin-bottom: 24px; }
+.upload-sub strong { color: var(--orange); }
+
+.btn-upload-primary {
+  background: linear-gradient(135deg, var(--orange), var(--orange-light));
+  color: #fff; border: none; border-radius: var(--radius-md);
+  padding: 13px 32px; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(232,98,10,0.35);
+  transition: var(--transition); display: inline-flex; align-items: center; gap: 9px;
+}
+.btn-upload-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,98,10,0.45); }
+
+.upload-preview { margin-bottom: 0; }
+.preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.preview-file-info { display: flex; align-items: center; gap: 14px; }
+.preview-icon { font-size: 32px; color: var(--orange); }
+.preview-fname { font-size: 15px; font-weight: 600; color: var(--black); }
+.preview-fmeta { font-size: 12px; color: var(--text-light); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+.preview-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+}
+.green-badge  { background: var(--green-pale); color: var(--green); border: 1px solid var(--green-mid); }
+.orange-badge { background: var(--orange-pale); color: var(--orange); border: 1px solid var(--orange-mid); }
+.red-badge    { background: var(--red-pale); color: var(--red); border: 1px solid var(--red-mid); }
+.ask-badge    { background: var(--ask-pale); color: var(--ask); border: 1px solid var(--ask-mid); }
+
+.api-config-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  padding: 18px; background: var(--cream); border-radius: var(--radius-md);
+  border: 1px solid var(--cream-border); margin-bottom: 18px;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-mid); letter-spacing: 0.5px; text-transform: uppercase; }
+.optional { color: var(--text-light); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.form-select, .form-input {
+  border: 1.5px solid var(--cream-border); border-radius: var(--radius-sm);
+  padding: 9px 12px; background: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+  transition: var(--transition); outline: none; width: 100%;
+}
+.form-select:focus, .form-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,98,10,0.10); }
+
+.btn-row { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.btn-row.center { justify-content: center; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--orange), var(--orange-light));
+  color: #fff; border: none; border-radius: var(--radius-md);
+  padding: 11px 26px; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(232,98,10,0.30);
+  transition: var(--transition); display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,98,10,0.40); }
+.btn-primary.big { padding: 14px 36px; font-size: 15px; }
+
+.btn-secondary {
+  background: var(--cream-dark); color: var(--text-mid);
+  border: 1.5px solid var(--cream-border); border-radius: var(--radius-md);
+  padding: 11px 22px; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: var(--transition); display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-secondary:hover { background: var(--cream-mid); border-color: var(--text-light); }
+.btn-secondary.big { padding: 14px 32px; font-size: 14px; }
+
+/* ════════════════ STEP 2: PROFILE ════════════════ */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px; margin-bottom: 20px;
+}
+.stat-card {
+  border-radius: var(--radius-lg); padding: 20px 18px;
+  border: 1.5px solid; text-align: center;
+  transition: var(--transition);
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.stat-icon { font-size: 22px; margin-bottom: 10px; }
+.stat-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px;
+}
+.stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.75; }
+.orange-card { background: var(--orange-pale); border-color: var(--orange-mid); color: var(--orange); }
+.ask-card    { background: var(--ask-pale);    border-color: var(--ask-mid);    color: var(--ask); }
+.red-card    { background: var(--red-pale);    border-color: var(--red-mid);    color: var(--red); }
+.black-card  { background: var(--cream-dark);  border-color: var(--cream-border); color: var(--black); }
+.green-card  { background: var(--green-pale);  border-color: var(--green-mid);  color: var(--green); }
+.gold-card   { background: var(--gold-pale);   border-color: #e0c060;           color: var(--gold); }
+
+.two-col-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 0; }
+.three-col-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+
+@media (max-width: 900px) {
+  .two-col-grid, .three-col-grid { grid-template-columns: 1fr; }
+  .api-config-row { grid-template-columns: 1fr; }
+  .sidebar { width: 250px; }
+}
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .main-content { padding: 20px 18px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Type Distribution */
+.type-dist { display: flex; flex-direction: column; gap: 10px; }
+.td-row { display: flex; align-items: center; gap: 10px; }
+.td-label { font-size: 12px; color: var(--text-mid); width: 90px; }
+.td-bar-bg { flex: 1; height: 10px; background: var(--cream-mid); border-radius: 5px; overflow: hidden; }
+.td-bar { height: 100%; border-radius: 5px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.td-count { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-light); width: 24px; text-align: right; }
+
+/* Issues List */
+.issues-list { display: flex; flex-direction: column; gap: 8px; }
+.issue-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border-left: 4px solid;
+}
+.issue-item.high   { background: var(--red-pale);    border-color: var(--red);    }
+.issue-item.medium { background: var(--orange-pale); border-color: var(--orange); }
+.issue-item.low    { background: var(--gold-pale);   border-color: var(--gold);   }
+.issue-icon  { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.issue-text  { font-size: 12px; color: var(--text-mid); line-height: 1.4; }
+.issue-sev   { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+.issue-item.high .issue-sev   { color: var(--red); }
+.issue-item.medium .issue-sev { color: var(--orange); }
+.issue-item.low .issue-sev    { color: var(--gold); }
+
+/* Column Table */
+.table-wrap { overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--cream-border); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table thead tr { background: var(--cream-dark); }
+.data-table th {
+  padding: 10px 14px; text-align: left; font-weight: 700;
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-mid); white-space: nowrap;
+  border-bottom: 2px solid var(--cream-border);
+  position: sticky; top: 0; z-index: 1;
+}
+.data-table td {
+  padding: 9px 14px; border-bottom: 1px solid var(--cream-mid);
+  color: var(--text-mid); vertical-align: middle;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--cream); }
+.mono-cell { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.flag-chip {
+  display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.5px; margin: 1px 2px; white-space: nowrap;
+}
+.flag-id   { background: var(--ask-pale);    color: var(--ask);    border: 1px solid var(--ask-mid); }
+.flag-const{ background: var(--red-pale);    color: var(--red);    border: 1px solid var(--red-mid); }
+.flag-miss { background: var(--orange-pale); color: var(--orange); border: 1px solid var(--orange-mid); }
+.flag-ok   { background: var(--green-pale);  color: var(--green);  border: 1px solid var(--green-mid); }
+.miss-pct-bar-wrap { display: flex; align-items: center; gap: 7px; min-width: 100px; }
+.miss-pct-bar-bg { width: 70px; height: 6px; background: var(--cream-mid); border-radius: 3px; flex-shrink: 0; }
+.miss-pct-bar { height: 100%; border-radius: 3px; }
+.miss-high   { background: var(--red); }
+.miss-medium { background: var(--orange); }
+.miss-low    { background: var(--gold); }
+.miss-zero   { background: var(--green); }
+
+/* Missing Bars */
+.missing-bars { display: flex; flex-direction: column; gap: 10px; }
+.mb-row { display: flex; align-items: center; gap: 10px; }
+.mb-label { font-size: 11px; color: var(--text-mid); width: 130px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-bar-bg { flex: 1; height: 14px; background: var(--cream-mid); border-radius: 4px; overflow: hidden; position: relative; }
+.mb-bar { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; padding-left: 6px; }
+.mb-bar-label { font-size: 9px; color: #fff; font-weight: 700; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+
+/* ════════════════ STEP 3: RECOMMENDATIONS ════════════════ */
+.loading-card {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  padding: 48px; background: #fff; border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg); font-size: 15px; color: var(--text-mid);
+  font-weight: 500; box-shadow: var(--shadow-sm);
+}
+.spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid var(--orange-mid);
+  border-top-color: var(--orange);
+  animation: spin 0.8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.rec-source-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.rec-source-badge {
+  padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0;
+  margin-top: 1px;
+}
+.rec-assess { font-size: 13px; color: var(--text-mid); line-height: 1.5; flex: 1; }
+
+/* Suggestions */
+.sugg-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-md);
+  margin-bottom: 10px; border-left: 5px solid;
+}
+.sugg-item.high   { background: var(--red-pale);    border-color: var(--red);    }
+.sugg-item.medium { background: var(--orange-pale); border-color: var(--orange); }
+.sugg-item.low    { background: var(--gold-pale);   border-color: var(--gold);   }
+.sugg-icon { font-size: 18px; flex-shrink: 0; }
+.sugg-body { flex: 1; }
+.sugg-text   { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 3px; }
+.sugg-impact { font-size: 11px; color: var(--text-light); }
+.sugg-badge  { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; margin-top: 2px; }
+.sugg-badge.high   { background: var(--red-mid);    color: var(--red); }
+.sugg-badge.medium { background: var(--orange-mid); color: var(--orange); }
+.sugg-badge.low    { background: #e0c060;           color: var(--gold); }
+
+/* Steps List */
+.steps-list { display: flex; flex-direction: column; gap: 8px; }
+.step-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; background: var(--cream);
+  border-radius: var(--radius-sm); border: 1px solid var(--cream-border);
+}
+.step-num {
+  width: 24px; height: 24px; background: var(--orange); color: #fff;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.step-text { font-size: 13px; color: var(--text-mid); }
+
+/* Drop/Missing/Encoding lists */
+.rec-item {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  margin-bottom: 6px; gap: 8px;
+  background: var(--cream); border: 1px solid var(--cream-border);
+  font-size: 12px;
+}
+.rec-item:last-child { margin-bottom: 0; }
+.rec-col  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--black); font-weight: 600; }
+.rec-val  { font-size: 11px; color: var(--text-light); text-align: right; }
+.rec-reason { font-size: 10px; color: var(--red); margin-top: 1px; }
+
+/* Scaling / Outlier badges */
+.badge-big {
+  display: inline-block; padding: 10px 18px; border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  margin-top: 8px;
+}
+.orange-bg { background: var(--orange-pale); color: var(--orange); border: 1.5px solid var(--orange-mid); }
+.red-bg    { background: var(--red-pale);    color: var(--red);    border: 1.5px solid var(--red-mid); }
+.ask-bg    { background: var(--ask-pale);    color: var(--ask);    border: 1.5px solid var(--ask-mid); }
+.small-card .card-title { margin-bottom: 8px; }
+
+/* Split Visual */
+.split-visual { display: flex; border-radius: var(--radius-sm); overflow: hidden; height: 40px; margin-top: 8px; }
+.sv-seg {
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; transition: flex 0.6s;
+}
+.sv-seg-label { font-size: 9px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+.sv-seg-pct   { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.85); }
+.sv-train { background: var(--orange); }
+.sv-val   { background: var(--ask); }
+.sv-test  { background: var(--red); }
+
+/* ════════════════ STEP 4: PROCESS ════════════════ */
+.processing-wrap { }
+.processing-visual {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 40px; background: #fff;
+  border: 1px solid var(--cream-border); border-radius: var(--radius-lg);
+  margin-bottom: 24px; box-shadow: var(--shadow-sm);
+}
+.proc-anim { position: relative; width: 80px; height: 80px; margin-bottom: 24px; }
+.proc-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 4px solid var(--orange-mid);
+  border-top-color: var(--orange);
+  animation: spin 1s linear infinite;
+}
+.proc-icon {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; animation: spin 3s linear infinite reverse;
+}
+.proc-label { font-size: 16px; color: var(--text-mid); font-weight: 500; margin-bottom: 20px; }
+.proc-steps-mini { display: flex; flex-direction: column; gap: 6px; width: 320px; max-width: 100%; }
+.psm-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-radius: var(--radius-sm); background: var(--cream);
+  border: 1px solid var(--cream-border);
+  transition: var(--transition); font-size: 12px; color: var(--text-light);
+}
+.psm-item.running { background: var(--orange-pale); border-color: var(--orange-mid); color: var(--orange); }
+.psm-item.done    { background: var(--green-pale);  border-color: var(--green-mid);  color: var(--green); }
+.psm-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cream-border); flex-shrink: 0; }
+.psm-item.running .psm-dot { background: var(--orange); animation: blink 0.7s infinite; }
+.psm-item.done .psm-dot    { background: var(--green); }
+
+/* Success Banner */
+.success-banner {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 24px; background: var(--green-pale);
+  border: 1.5px solid var(--green-mid); border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+.success-banner > .fa { font-size: 32px; color: var(--green); flex-shrink: 0; }
+.success-title { font-size: 18px; font-weight: 700; color: var(--green); font-family: 'Playfair Display', serif; }
+.success-sub   { font-size: 13px; color: var(--text-mid); margin-top: 3px; }
+
+/* Compare Grid */
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 14px; }
+.cg-item {
+  text-align: center; padding: 14px 12px;
+  background: var(--cream); border-radius: var(--radius-md);
+  border: 1px solid var(--cream-border);
+}
+.cg-label { font-size: 10px; color: var(--text-light); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.cg-vals  { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.cg-before { font-size: 16px; font-weight: 700; color: var(--red); }
+.cg-arrow  { font-size: 16px; color: var(--text-light); }
+.cg-after  { font-size: 16px; font-weight: 700; color: var(--green); }
+
+/* Split Result Cards */
+.split-result-card { text-align: center; padding: 28px 20px; }
+.split-result-card.train-border { border-top: 4px solid var(--orange); }
+.split-result-card.val-border   { border-top: 4px solid var(--ask); }
+.split-result-card.test-border  { border-top: 4px solid var(--red); }
+.sr-icon  { font-size: 28px; margin-bottom: 10px; }
+.sr-stat-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-top: 14px;
+}
+.sr-stat {
+  text-align: center; padding: 0 18px;
+}
+.sr-stat-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px; font-weight: 700; color: var(--text-dark);
+  line-height: 1.1;
+}
+.sr-stat-key {
+  font-size: 11px; color: var(--text-light);
+  text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;
+}
+.sr-stat-div {
+  width: 1px; height: 36px; background: var(--cream-border);
+}
+.sr-icon.sr-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px; font-weight: 900; color: var(--orange);
+  width: 56px; height: 56px;
+  border: 3px solid var(--orange); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px; line-height: 1;
+}
+.sr-label { font-size: 12px; color: var(--text-light); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.sr-shape { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--black); margin-bottom: 4px; }
+.sr-pct   { font-size: 12px; font-weight: 600; }
+.sr-pct.orange { color: var(--orange); }
+.sr-pct.ask    { color: var(--ask); }
+.sr-pct.red    { color: var(--red); }
+
+/* ════════════════ STEP 5: EXPORT ════════════════ */
+.export-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px; margin-bottom: 20px;
+}
+@media (max-width: 860px) { .export-grid { grid-template-columns: 1fr; } }
+
+.export-dl-card { text-align: center; padding: 30px 20px; }
+.export-dl-card.train-border { border-top: 4px solid var(--orange); }
+.export-dl-card.val-border   { border-top: 4px solid var(--ask); }
+.export-dl-card.test-border  { border-top: 4px solid var(--red); }
+.export-icon { font-size: 36px; margin-bottom: 12px; }
+.export-icon.train-color { color: var(--orange); }
+.export-icon.val-color   { color: var(--ask); }
+.export-icon.test-color  { color: var(--red); }
+.export-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: var(--black); margin-bottom: 6px; }
+.export-desc  { font-size: 12px; color: var(--text-light); margin-bottom: 14px; }
+.export-tags  { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.etag {
+  padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600;
+  background: var(--cream-mid); color: var(--text-mid); border: 1px solid var(--cream-border);
+}
+.etag.orange { background: var(--orange-pale); color: var(--orange); border-color: var(--orange-mid); }
+.etag.ask    { background: var(--ask-pale);    color: var(--ask);    border-color: var(--ask-mid); }
+.etag.green  { background: var(--green-pale);  color: var(--green);  border-color: var(--green-mid); }
+.etag.red    { background: var(--red-pale);    color: var(--red);    border-color: var(--red-mid); }
+
+.btn-dl-big {
+  width: 100%; padding: 13px 20px; border-radius: var(--radius-md);
+  border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: var(--transition);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+}
+.btn-dl-big:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-dl-big.train { background: linear-gradient(135deg, var(--orange), var(--orange-light)); color: #fff; box-shadow: 0 4px 14px rgba(232,98,10,0.30); }
+.btn-dl-big.train:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,98,10,0.40); }
+.btn-dl-big.val   { background: linear-gradient(135deg, var(--ask), var(--ask-hover)); color: #fff; box-shadow: 0 4px 14px rgba(26,74,138,0.25); }
+.btn-dl-big.val:not(:disabled):hover   { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26,74,138,0.35); }
+.btn-dl-big.test  { background: linear-gradient(135deg, var(--red), var(--red-hover)); color: #fff; box-shadow: 0 4px 14px rgba(192,22,15,0.25); }
+.btn-dl-big.test:not(:disabled):hover  { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(192,22,15,0.35); }
+
+.report-card { }
+.report-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
+.report-desc { font-size: 13px; color: var(--text-light); margin-top: 8px; line-height: 1.5; max-width: 500px; }
+.btn-report-big {
+  background: linear-gradient(135deg, var(--black), var(--black-mid));
+  color: #fff; border: none; border-radius: var(--radius-md);
+  padding: 13px 28px; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.20);
+  transition: var(--transition); display: inline-flex; align-items: center; gap: 9px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.btn-report-big:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.30); background: linear-gradient(135deg, #2e2010, #1a1208); }
+.btn-report-big:disabled { opacity: 0.4; cursor: not-allowed; }
+.report-includes { display: flex; flex-wrap: wrap; gap: 16px; }
+.ri-item { font-size: 12px; color: var(--text-mid); display: flex; align-items: center; gap: 6px; }
+.ri-item .orange { color: var(--orange); }
+
+/* ════════════════ UTILITY ════════════════ */
+.orange { color: var(--orange); }
+.ask    { color: var(--ask); }
+.red    { color: var(--red); }
+.green  { color: var(--green); }
+
+/* ════════════════ TOAST ════════════════ */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-radius: var(--radius-md);
+  background: #fff; box-shadow: var(--shadow-xl);
+  border-left: 4px solid; min-width: 280px; max-width: 380px;
+  animation: toast-in 0.35s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: all;
+}
+.toast.removing { animation: toast-out 0.3s ease forwards; }
+.toast.success { border-color: var(--green); }
+.toast.error   { border-color: var(--red); }
+.toast.warning { border-color: var(--orange); }
+.toast.info    { border-color: var(--ask); }
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+.toast.success .toast-icon { color: var(--green); }
+.toast.error   .toast-icon { color: var(--red); }
+.toast.warning .toast-icon { color: var(--orange); }
+.toast.info    .toast-icon { color: var(--ask); }
+.toast-msg { font-size: 13px; color: var(--text); flex: 1; }
+@keyframes toast-in  { from { opacity:0; transform:translateX(32px); } to { opacity:1; transform:none; } }
+@keyframes toast-out { to   { opacity:0; transform:translateX(32px); } }
+
+/* ════════════════ OVERLAY LOADER ════════════════ */
+#overlay-loader {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(250,246,240,0.88); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.loader-box {
+  text-align: center; padding: 48px 60px;
+  background: #fff; border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl); border: 1px solid var(--cream-border);
+}
+.loader-percent {
+  font-family: 'Playfair Display', serif;
+  font-size: 42px; font-weight: 700;
+  color: var(--orange); margin: 12px 0 16px;
+  letter-spacing: -1px;
+}
+.loader-track {
+  width: 260px; height: 6px;
+  background: var(--orange-mid);
+  border-radius: 3px; margin: 0 auto;
+  overflow: hidden;
+}
+.loader-fill {
+  height: 100%; width: 0%;
+  background: var(--orange);
+  border-radius: 3px;
+  transition: width 0.35s ease;
+}
+.loader-text { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--orange); font-weight: 700; margin-bottom: 6px; }
+.loader-sub  { font-size: 13px; color: var(--text-light); }
+
+/* empty state */
+.empty-state { text-align: center; padding: 32px; color: var(--text-light); font-size: 13px; }
+.empty-state .fa { font-size: 28px; margin-bottom: 10px; display: block; opacity: 0.4; }
+
+/* ════════════════ API SETTINGS CARD ════════════════ */
+.api-settings-card {
+  background: #fff; border: 1.5px solid var(--cream-border);
+  border-radius: var(--radius-lg); padding: 20px 22px;
+  margin-bottom: 18px; box-shadow: var(--shadow-sm);
+}
+.api-settings-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+}
+.api-settings-title-row { display: flex; align-items: center; gap: 12px; }
+.api-key-icon { font-size: 20px; color: var(--orange); flex-shrink: 0; }
+.api-settings-title { font-size: 14px; font-weight: 700; color: var(--black); }
+.api-settings-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+.api-conn-status {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--cream); border: 1px solid var(--cream-border);
+  font-size: 11px; font-weight: 600; color: var(--text-mid);
+  white-space: nowrap;
+}
+.conn-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.conn-dot.disconnected { background: #bbb; }
+.conn-dot.connecting   { background: var(--orange); animation: blink 0.7s infinite; }
+.conn-dot.connected    { background: var(--green); box-shadow: 0 0 6px rgba(26,122,60,0.5); }
+.conn-dot.error        { background: var(--red); }
+.test-ok { font-size:12px; color:var(--green); font-weight:600; display:flex; align-items:center; gap:6px; }
+.test-err { font-size:12px; color:var(--red); font-weight:600; display:flex; align-items:center; gap:6px; }
+.api-test-result { margin-top:8px; min-height:20px; }
+.btn-test-conn:disabled { opacity:0.5; cursor:not-allowed; }
+.fa-spin { animation: spin 0.8s linear infinite; }
+
+/* Provider Tabs */
+.api-provider-tabs {
+  display: flex; gap: 6px; margin-bottom: 16px;
+  background: var(--cream); border-radius: var(--radius-md);
+  padding: 5px; border: 1px solid var(--cream-border);
+}
+.api-tab {
+  flex: 1; padding: 9px 14px; border: none; border-radius: var(--radius-sm);
+  background: transparent; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 500; color: var(--text-light);
+  transition: var(--transition); display: flex; align-items: center;
+  justify-content: center; gap: 7px;
+}
+.api-tab:hover { background: rgba(232,98,10,0.07); color: var(--text-mid); }
+.api-tab.active {
+  background: #fff; color: var(--orange); font-weight: 700;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--orange-mid);
+}
+
+/* Provider panels */
+.api-provider-panel { animation: panel-in 0.2s ease; }
+
+.api-info-box {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; background: var(--ask-pale);
+  border: 1px solid var(--ask-mid); border-radius: var(--radius-md);
+}
+
+.api-field-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px;
+  align-items: start; margin-bottom: 12px;
+}
+@media (max-width: 650px) { .api-field-row { grid-template-columns: 1fr; } }
+
+.api-field-group { display: flex; flex-direction: column; gap: 6px; }
+.api-field-label {
+  font-size: 11px; font-weight: 700; color: var(--text-mid);
+  letter-spacing: 0.5px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.api-get-key-link {
+  font-size: 10px; color: var(--ask); text-decoration: none;
+  font-weight: 600; letter-spacing: 0; text-transform: none;
+  padding: 2px 7px; border-radius: 10px; background: var(--ask-pale);
+  border: 1px solid var(--ask-mid); transition: var(--transition);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.api-get-key-link:hover { background: var(--ask); color: #fff; }
+
+.api-input-wrap {
+  display: flex; align-items: center; gap: 0;
+  border: 1.5px solid var(--cream-border); border-radius: var(--radius-sm);
+  background: #fff; overflow: hidden; transition: var(--transition);
+}
+.api-input-wrap:focus-within {
+  border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,98,10,0.10);
+}
+.api-input-wrap.valid   { border-color: var(--green); }
+.api-input-wrap.invalid { border-color: var(--red); }
+
+.api-key-input-field {
+  flex: 1; border: none; outline: none; padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text);
+  background: transparent; min-width: 0;
+}
+.api-key-input-field::placeholder { color: var(--text-light); font-family: 'DM Sans', sans-serif; font-size: 12px; }
+
+.api-eye-btn {
+  padding: 0 12px; border: none; background: transparent;
+  color: var(--text-light); cursor: pointer; font-size: 13px;
+  transition: var(--transition); height: 100%;
+}
+.api-eye-btn:hover { color: var(--orange); }
+
+.api-key-hint {
+  font-size: 10px; color: var(--text-light); margin-top: 2px;
+}
+.api-key-hint code {
+  font-family: 'JetBrains Mono', monospace; background: var(--cream-mid);
+  padding: 1px 5px; border-radius: 3px; color: var(--ask);
+}
+
+.api-model-group { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+.api-model-select {
+  border: 1.5px solid var(--cream-border); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; color: var(--text); background: #fff; outline: none;
+  transition: var(--transition); cursor: pointer;
+}
+.api-model-select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,98,10,0.10); }
+
+.api-action-row {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.btn-test-conn {
+  padding: 9px 20px; border-radius: var(--radius-md);
+  border: 1.5px solid var(--ask-mid); background: var(--ask-pale);
+  color: var(--ask); font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: var(--transition); display: flex; align-items: center; gap: 7px;
+}
+.btn-test-conn:not(:disabled):hover { background: var(--ask); color: #fff; border-color: var(--ask); }
+.btn-test-conn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-test-conn.testing { background: var(--orange-pale); border-color: var(--orange-mid); color: var(--orange); }
+
+.api-test-result {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 500; min-height: 22px;
+}
+.api-test-result.success { color: var(--green); }
+.api-test-result.error   { color: var(--red); }
+.api-test-result.testing { color: var(--orange); }
+
+/* Sidebar AI status */
+.sb-api-status {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--cream); border: 1px solid var(--cream-border);
+  margin-top: 8px;
+}
+.sb-api-provider-name { font-size: 11px; font-weight: 600; color: var(--black); }
+.sb-api-model-name    { font-size: 10px; color: var(--text-light); margin-top: 1px; }
+
+</style>
+
+<body>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header id="main-header">
+    <div class="header-left">
+      <div class="brand-icon">⚙</div>
+      <div class="brand-text">
+        <span class="brand-name">Data<span class="orange">Prep</span> Engine</span>
+        <span class="brand-sub">AI-Powered Preprocessing System</span>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="pipeline-mini">
+        <span class="pm-step active" id="hstep-1">Upload</span>
+        <span class="pm-arrow">›</span>
+        <span class="pm-step" id="hstep-2">Profile</span>
+        <span class="pm-arrow">›</span>
+        <span class="pm-step" id="hstep-3">Recommend</span>
+        <span class="pm-arrow">›</span>
+        <span class="pm-step" id="hstep-4">Process</span>
+        <span class="pm-arrow">›</span>
+        <span class="pm-step" id="hstep-5">Export</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-indicator" id="global-status">
+        <span class="status-dot idle" id="status-dot"></span>
+        <span id="status-text">Ready</span>
+      </div>
+      <button class="btn-header" id="btn-new-session" onclick="App.resetSession()">
+        <i class="fa fa-rotate-right"></i> New Session
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════ MAIN LAYOUT ═══════════════ -->
+  <div class="layout-wrapper">
+
+    <!-- ── LEFT SIDEBAR ── -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- Session Panel -->
+      <div class="sb-section">
+        <div class="sb-title orange-title"><i class="fa fa-layer-group"></i> Session Info</div>
+        <div class="sb-card">
+          <div class="info-row"><span class="ir-label">Session ID</span><span class="ir-val mono" id="sb-session-id">—</span></div>
+          <div class="info-row"><span class="ir-label">Dataset</span><span class="ir-val" id="sb-filename">Not loaded</span></div>
+          <div class="info-row"><span class="ir-label">Rows</span><span class="ir-val mono orange" id="sb-rows">—</span></div>
+          <div class="info-row"><span class="ir-label">Columns</span><span class="ir-val mono orange" id="sb-cols">—</span></div>
+          <div class="info-row"><span class="ir-label">Memory</span><span class="ir-val mono" id="sb-memory">—</span></div>
+          <div class="info-row"><span class="ir-label">Duplicates</span><span class="ir-val mono red" id="sb-dups">—</span></div>
+          <div class="info-row"><span class="ir-label">Missing %</span><span class="ir-val mono red" id="sb-missing">—</span></div>
+          <div class="info-row"><span class="ir-label">Quality Score</span><span class="ir-val mono ask-bold" id="sb-quality">—</span></div>
+          <div class="info-row"><span class="ir-label">AI Provider</span><span class="ir-val mono green" id="sb-provider">Rule-based</span></div>
+          <div class="info-row">
+            <span class="ir-label">API Status</span>
+            <span id="sb-api-status" style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600">
+              <span id="sb-api-dot" style="width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block;flex-shrink:0"></span>
+              <span id="sb-api-label">Not tested</span>
+            </span>
+          </div>
+          <div class="info-row" id="sb-api-test-row">
+            <button onclick="App.quickTestApi()" style="font-size:11px;padding:3px 10px;border:1px solid var(--cream-border);border-radius:4px;background:var(--cream-dark);cursor:pointer;color:var(--text);width:100%">
+              <i class="fa fa-plug"></i> Test API Now
+            </button>
+          </div>
+          <div class="info-row"><span class="ir-label">Stage</span><span class="ir-val mono" id="sb-stage">Upload</span></div>
+        </div>
+      </div>
+
+      <!-- Quality Gauge -->
+      <div class="sb-section" id="sb-quality-section" style="display:none">
+        <div class="sb-title red-title"><i class="fa fa-chart-pie"></i> Quality Gauge</div>
+        <div class="quality-gauge-wrap">
+          <canvas id="qualityGauge" width="200" height="110"></canvas>
+          <div class="gauge-label-wrap">
+            <span id="gauge-score" class="gauge-score">—</span>
+            <span id="gauge-rating" class="gauge-rating">—</span>
+          </div>
+        </div>
+        <div class="quality-bars">
+          <div class="qb-row">
+            <span class="qb-label">Completeness</span>
+            <div class="qb-bar-bg"><div class="qb-bar green-bar" id="qb-completeness" style="width:0%"></div></div>
+            <span class="qb-pct" id="qb-completeness-val">0%</span>
+          </div>
+          <div class="qb-row">
+            <span class="qb-label">Consistency</span>
+            <div class="qb-bar-bg"><div class="qb-bar ask-bar" id="qb-consistency" style="width:0%"></div></div>
+            <span class="qb-pct" id="qb-consistency-val">0%</span>
+          </div>
+          <div class="qb-row">
+            <span class="qb-label">Validity</span>
+            <div class="qb-bar-bg"><div class="qb-bar orange-bar" id="qb-validity" style="width:0%"></div></div>
+            <span class="qb-pct" id="qb-validity-val">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Download Panel -->
+      <div class="sb-section" id="sb-download-section" style="display:none">
+        <div class="sb-title black-title"><i class="fa fa-download"></i> Download Splits</div>
+        <div class="sb-card download-card">
+          <button class="btn-download train" id="btn-dl-train" onclick="App.downloadFile('train')" disabled>
+            <i class="fa fa-table"></i>
+            <div class="dl-info"><span class="dl-name">Training Set</span><span class="dl-size" id="dl-train-size">—</span></div>
+            <i class="fa fa-arrow-down dl-arrow"></i>
+          </button>
+          <button class="btn-download val" id="btn-dl-val" onclick="App.downloadFile('val')" disabled>
+            <i class="fa fa-check-circle"></i>
+            <div class="dl-info"><span class="dl-name">Validation Set</span><span class="dl-size" id="dl-val-size">—</span></div>
+            <i class="fa fa-arrow-down dl-arrow"></i>
+          </button>
+          <button class="btn-download test" id="btn-dl-test" onclick="App.downloadFile('test')" disabled>
+            <i class="fa fa-flask"></i>
+            <div class="dl-info"><span class="dl-name">Test Set</span><span class="dl-size" id="dl-test-size">—</span></div>
+            <i class="fa fa-arrow-down dl-arrow"></i>
+          </button>
+        </div>
+        <button class="btn-report" id="btn-report" onclick="App.generateReport()" disabled>
+          <i class="fa fa-file-lines"></i> Generate & Download Report
+        </button>
+      </div>
+
+      <!-- Processing Log -->
+      <div class="sb-section" id="sb-log-section" style="display:none">
+        <div class="sb-title black-title"><i class="fa fa-terminal"></i> Processing Log</div>
+        <div class="log-container" id="log-container"></div>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content">
+
+      <!-- ═══ STEP 1: UPLOAD ═══ -->
+      <section class="step-panel active" id="panel-upload">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="step-badge">01</span>
+            <div>
+              <h2 class="panel-title orange">Upload Dataset</h2>
+              <p class="panel-sub">Upload your CSV or Excel file to begin the preprocessing pipeline</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="App.handleFileSelect(event)" />
+          <div class="upload-icon">📂</div>
+          <h3 class="upload-title">Drop your dataset here</h3>
+          <p class="upload-sub">Supports <strong>CSV</strong>, <strong>XLSX</strong>, <strong>XLS</strong> — Max 16 MB</p>
+          <button class="btn-upload-primary" onclick="document.getElementById('file-input').click()">
+            <i class="fa fa-cloud-arrow-up"></i> Choose File
+          </button>
+        </div>
+
+        <div class="upload-preview card" id="upload-preview" style="display:none">
+          <div class="preview-header">
+            <div class="preview-file-info">
+              <i class="fa fa-file-csv preview-icon"></i>
+              <div>
+                <div class="preview-fname" id="prev-fname">—</div>
+                <div class="preview-fmeta" id="prev-fmeta">—</div>
+              </div>
+            </div>
+            <span class="preview-badge green-badge">Ready</span>
+          </div>
+          <!-- API Config (server-side only) -->
+          <div class="api-status-badge" id="api-settings-card" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--cream-dark);border:1px solid var(--cream-border);border-radius:8px;margin-bottom:4px">
+            <span id="conn-dot" class="conn-dot disconnected"></span>
+            <span id="conn-label" style="font-size:13px;color:var(--text-mid);font-weight:500">API configured in app.py</span>
+            <button onclick="App.quickTestApi()" style="margin-left:auto;font-size:11px;padding:4px 12px;border:1px solid var(--cream-border);border-radius:4px;background:var(--cream);cursor:pointer;color:var(--text)">
+              <i class="fa fa-plug"></i> Test
+            </button>
+          </div>
+          <!-- Hidden fields kept for JS compatibility -->
+          <input type="hidden" id="ai-provider" value=""/>
+          <input type="hidden" id="api-key-input" value=""/>
+          <input type="hidden" id="anthropic-key" value=""/>
+          <input type="hidden" id="groq-key" value=""/>
+          <input type="hidden" id="anthropic-model" value=""/>
+          <input type="hidden" id="groq-model" value=""/>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="App.resetUpload()"><i class="fa fa-trash"></i> Clear</button>
+            <button class="btn-primary" id="btn-analyze" onclick="App.analyzeDataset()">
+              <i class="fa fa-magnifying-glass-chart"></i> Analyze Dataset
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ STEP 2: PROFILE ═══ -->
+      <section class="step-panel" id="panel-profile">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="step-badge">02</span>
+            <div>
+              <h2 class="panel-title orange">Dataset Profile</h2>
+              <p class="panel-sub">Comprehensive analysis of your data structure and quality</p>
+            </div>
+          </div>
+          <button class="btn-next" onclick="App.goToStep(3)">Get AI Recommendations <i class="fa fa-arrow-right"></i></button>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card orange-card">
+            <div class="stat-icon"><i class="fa fa-table-rows"></i></div>
+            <div class="stat-val" id="stat-rows">—</div>
+            <div class="stat-label">Total Rows</div>
+          </div>
+          <div class="stat-card ask-card">
+            <div class="stat-icon"><i class="fa fa-columns"></i></div>
+            <div class="stat-val" id="stat-cols">—</div>
+            <div class="stat-label">Columns</div>
+          </div>
+          <div class="stat-card red-card">
+            <div class="stat-icon"><i class="fa fa-circle-exclamation"></i></div>
+            <div class="stat-val" id="stat-missing">—</div>
+            <div class="stat-label">Missing %</div>
+          </div>
+          <div class="stat-card black-card">
+            <div class="stat-icon"><i class="fa fa-clone"></i></div>
+            <div class="stat-val" id="stat-dups">—</div>
+            <div class="stat-label">Duplicates</div>
+          </div>
+          <div class="stat-card green-card">
+            <div class="stat-icon"><i class="fa fa-star"></i></div>
+            <div class="stat-val" id="stat-score">—</div>
+            <div class="stat-label">Quality Score</div>
+          </div>
+          <div class="stat-card gold-card">
+            <div class="stat-icon"><i class="fa fa-brain"></i></div>
+            <div class="stat-val" id="stat-mltype">—</div>
+            <div class="stat-label">ML Type</div>
+          </div>
+        </div>
+
+        <!-- Type Distribution -->
+        <div class="two-col-grid">
+          <div class="card">
+            <div class="card-title red-title"><i class="fa fa-pie-chart"></i> Column Type Distribution</div>
+            <div class="type-dist" id="type-dist"></div>
+          </div>
+          <div class="card">
+            <div class="card-title black-title"><i class="fa fa-triangle-exclamation"></i> Detected Issues</div>
+            <div class="issues-list" id="issues-list"></div>
+          </div>
+        </div>
+
+        <!-- Column Table -->
+        <div class="card" id="col-table-card">
+          <div class="card-title orange-title"><i class="fa fa-list"></i> Column Analysis</div>
+          <div class="table-wrap">
+            <table class="data-table" id="col-table">
+              <thead>
+                <tr>
+                  <th>Column Name</th>
+                  <th>Type</th>
+                  <th>Unique</th>
+                  <th>Missing</th>
+                  <th>Missing %</th>
+                  <th>Flags</th>
+                  <th>Sample Values</th>
+                </tr>
+              </thead>
+              <tbody id="col-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Missing Values Chart -->
+        <div class="card" id="missing-chart-card">
+          <div class="card-title ask-title"><i class="fa fa-chart-bar"></i> Missing Values by Column</div>
+          <div class="missing-bars" id="missing-bars"></div>
+        </div>
+      </section>
+
+      <!-- ═══ STEP 3: RECOMMENDATIONS ═══ -->
+      <section class="step-panel" id="panel-recommend">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="step-badge">03</span>
+            <div>
+              <h2 class="panel-title orange">AI Recommendations</h2>
+              <p class="panel-sub">Intelligent preprocessing strategy tailored to your dataset</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn-secondary" id="btn-get-rec" onclick="App.getRecommendations()"><i class="fa fa-wand-magic-sparkles"></i> Get Recommendations</button>
+            <button class="btn-next" onclick="App.applyPreprocessing()"><i class="fa fa-play"></i> Apply & Process</button>
+          </div>
+        </div>
+
+        <div id="rec-loading" class="loading-card" style="display:flex">
+          <div class="spinner"></div>
+          <span>Generating AI recommendations...</span>
+        </div>
+
+        <div id="rec-content" style="display:none">
+          <!-- Source Badge -->
+          <div class="rec-source-row">
+            <span class="rec-source-badge" id="rec-source-badge">—</span>
+            <span class="rec-assess" id="rec-assess">—</span>
+          </div>
+
+          <!-- Suggestions -->
+          <div class="card" id="suggestions-card">
+            <div class="card-title red-title"><i class="fa fa-lightbulb"></i> Key Suggestions</div>
+            <div id="suggestions-list"></div>
+          </div>
+
+          <!-- Steps -->
+          <div class="card">
+            <div class="card-title orange-title"><i class="fa fa-list-ol"></i> Preprocessing Pipeline Steps</div>
+            <div class="steps-list" id="steps-list"></div>
+          </div>
+
+          <!-- Three columns: Drop / Missing / Encoding -->
+          <div class="three-col-grid">
+            <div class="card">
+              <div class="card-title red-title"><i class="fa fa-trash-can"></i> Columns to Drop</div>
+              <div id="drop-cols-list"></div>
+            </div>
+            <div class="card">
+              <div class="card-title ask-title"><i class="fa fa-fill-drip"></i> Missing Value Strategy</div>
+              <div id="missing-strat-list"></div>
+            </div>
+            <div class="card">
+              <div class="card-title black-title"><i class="fa fa-tags"></i> Encoding Plan</div>
+              <div id="encoding-list"></div>
+            </div>
+          </div>
+
+          <!-- Scaling / Outlier / Split -->
+          <div class="three-col-grid">
+            <div class="card small-card">
+              <div class="card-title orange-title"><i class="fa fa-ruler"></i> Scaling</div>
+              <div class="badge-big orange-bg" id="rec-scaling">—</div>
+            </div>
+            <div class="card small-card">
+              <div class="card-title red-title"><i class="fa fa-filter"></i> Outlier Handling</div>
+              <div class="badge-big red-bg" id="rec-outlier">—</div>
+            </div>
+            <div class="card small-card">
+              <div class="card-title ask-title"><i class="fa fa-scissors"></i> Data Split</div>
+              <div class="split-visual" id="split-visual"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ STEP 4: PROCESSING ═══ -->
+      <section class="step-panel" id="panel-process">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="step-badge">04</span>
+            <div>
+              <h2 class="panel-title orange">Processing</h2>
+              <p class="panel-sub">Executing preprocessing pipeline on your dataset</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="processing-wrap">
+          <div class="processing-visual" id="proc-visual">
+            <div class="proc-anim">
+              <div class="proc-ring"></div>
+              <div class="proc-icon">⚙</div>
+            </div>
+            <div class="proc-label" id="proc-label">Initializing pipeline...</div>
+            <div class="proc-steps-mini" id="proc-steps-mini"></div>
+          </div>
+
+          <!-- Results after processing -->
+          <div id="proc-results" style="display:none">
+            <div class="success-banner">
+              <i class="fa fa-circle-check"></i>
+              <div>
+                <div class="success-title">Preprocessing Complete!</div>
+                <div class="success-sub" id="success-sub">Dataset successfully processed and split.</div>
+              </div>
+            </div>
+
+            <!-- Before/After Quality Comparison -->
+            <div class="card">
+              <div class="card-title orange-title"><i class="fa fa-arrow-right-arrow-left"></i> Before vs After Quality</div>
+              <div class="compare-grid" id="compare-grid"></div>
+            </div>
+
+            <!-- Shape Summary -->
+            <div class="three-col-grid">
+              <div class="card split-result-card train-border">
+                <div class="sr-label">Training Set</div>
+                <div class="sr-pct orange">70%</div>
+                <div class="sr-stat-row">
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-train-rows">—</div><div class="sr-stat-key">Rows</div></div>
+                  <div class="sr-stat-div"></div>
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-train-cols">—</div><div class="sr-stat-key">Columns</div></div>
+                </div>
+                <div class="sr-shape" id="sr-train-shape" style="display:none">—</div>
+              </div>
+              <div class="card split-result-card val-border">
+                <div class="sr-label">Validation Set</div>
+                <div class="sr-pct ask">15%</div>
+                <div class="sr-stat-row">
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-val-rows">—</div><div class="sr-stat-key">Rows</div></div>
+                  <div class="sr-stat-div"></div>
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-val-cols">—</div><div class="sr-stat-key">Columns</div></div>
+                </div>
+                <div class="sr-shape" id="sr-val-shape" style="display:none">—</div>
+              </div>
+              <div class="card split-result-card test-border">
+                <div class="sr-label">Test Set</div>
+                <div class="sr-pct red">15%</div>
+                <div class="sr-stat-row">
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-test-rows">—</div><div class="sr-stat-key">Rows</div></div>
+                  <div class="sr-stat-div"></div>
+                  <div class="sr-stat"><div class="sr-stat-val" id="sr-test-cols">—</div><div class="sr-stat-key">Columns</div></div>
+                </div>
+                <div class="sr-shape" id="sr-test-shape" style="display:none">—</div>
+                <div class="sr-pct red">15%</div>
+              </div>
+            </div>
+
+            <div class="btn-row center">
+              <button class="btn-primary big" onclick="App.goToStep(5)">
+                <i class="fa fa-download"></i> Proceed to Export
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ STEP 5: EXPORT ═══ -->
+      <section class="step-panel" id="panel-export">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="step-badge">05</span>
+            <div>
+              <h2 class="panel-title orange">Export & Report</h2>
+              <p class="panel-sub">Download your processed splits and full preprocessing report</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="export-grid">
+          <!-- Download Cards -->
+          <div class="card export-dl-card train-border">
+            <div class="export-icon train-color"><i class="fa fa-table"></i></div>
+            <div class="export-title">Training Dataset</div>
+            <div class="export-desc">Primary training data with <span id="ex-train-rows">—</span> rows</div>
+            <div class="export-tags">
+              <span class="etag orange">70% Split</span>
+              <span class="etag green">Scaled</span>
+              <span class="etag ask">Encoded</span>
+            </div>
+            <button class="btn-dl-big train" id="ex-btn-train" onclick="App.downloadFile('train')" disabled>
+              <i class="fa fa-cloud-arrow-down"></i> Download Train CSV
+            </button>
+          </div>
+
+          <div class="card export-dl-card val-border">
+            <div class="export-icon val-color"><i class="fa fa-check-circle"></i></div>
+            <div class="export-title">Validation Dataset</div>
+            <div class="export-desc">Validation data with <span id="ex-val-rows">—</span> rows</div>
+            <div class="export-tags">
+              <span class="etag ask">15% Split</span>
+              <span class="etag green">Scaled</span>
+              <span class="etag">Clean</span>
+            </div>
+            <button class="btn-dl-big val" id="ex-btn-val" onclick="App.downloadFile('val')" disabled>
+              <i class="fa fa-cloud-arrow-down"></i> Download Val CSV
+            </button>
+          </div>
+
+          <div class="card export-dl-card test-border">
+            <div class="export-icon test-color"><i class="fa fa-circle-check"></i></div>
+            <div class="export-title">Test Dataset</div>
+            <div class="export-desc">Held-out test data with <span id="ex-test-rows">—</span> rows</div>
+            <div class="export-tags">
+              <span class="etag red">15% Split</span>
+              <span class="etag green">Scaled</span>
+              <span class="etag">Unseen</span>
+            </div>
+            <button class="btn-dl-big test" id="ex-btn-test" onclick="App.downloadFile('test')" disabled>
+              <i class="fa fa-cloud-arrow-down"></i> Download Test CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Report Card -->
+        <div class="card report-card">
+          <div class="report-header">
+            <div>
+              <div class="card-title black-title"><i class="fa fa-file-lines"></i> Full Preprocessing Report</div>
+              <p class="report-desc">Comprehensive HTML report including dataset profile, quality scores, recommendations, processing log, and split statistics.</p>
+            </div>
+            <button class="btn-report-big" id="btn-gen-report" onclick="App.generateReport()" disabled>
+              <i class="fa fa-file-export"></i> Generate Report
+            </button>
+          </div>
+          <div class="report-includes">
+            <span class="ri-item"><i class="fa fa-check orange"></i> Dataset Summary</span>
+            <span class="ri-item"><i class="fa fa-check orange"></i> Quality Analysis</span>
+            <span class="ri-item"><i class="fa fa-check orange"></i> Column Profiles</span>
+            <span class="ri-item"><i class="fa fa-check orange"></i> AI Recommendations</span>
+            <span class="ri-item"><i class="fa fa-check orange"></i> Processing Steps</span>
+            <span class="ri-item"><i class="fa fa-check orange"></i> Split Statistics</span>
+          </div>
+        </div>
+
+        <!-- New Session -->
+        <div class="btn-row center" style="margin-top:20px">
+          <button class="btn-secondary big" onclick="App.resetSession()">
+            <i class="fa fa-rotate-right"></i> Start New Session
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══ TOAST CONTAINER ═══ -->
+  <div id="toast-container"></div>
+
+  <!-- ═══ OVERLAY LOADER ═══ -->
+  <div id="overlay-loader" style="display:none">
+    <div class="loader-box">
+      <div class="loader-text" id="loader-text">Processing...</div>
+      <div class="loader-sub" id="loader-sub">Please wait</div>
+      <div class="loader-percent" id="loader-percent">0%</div>
+      <div class="loader-track">
+        <div class="loader-fill" id="loader-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+/**
+ * DataPrep Engine — app.js
+ * Full integration with Flask backend (app.py)
+ * Handles: Upload → Profile → Recommend → Preprocess → Export/Report
+ */
+
+const API_BASE = 'http://localhost:5000';
+
+const App = (() => {
+
+  /* ─── STATE ─── */
+  const state = {
+    sessionId:         null,
+    currentStep:       1,
+    filename:          null,
+    profile:           null,
+    recommendations:   null,
+    processedFiles:    { train: null, val: null, test: null },
+    shapes:            {},
+    processingLog:     [],
+    qualityBefore:     null,
+    qualityAfter:      null,
+    connectedProvider: null,
+    connectedModel:    null,
+  };
+
+  /* ─── INIT ─── */
+  function init() {
+    state.sessionId = 'SID-' + Date.now().toString(36).toUpperCase();
+    document.getElementById('sb-session-id').textContent = state.sessionId.slice(-8);
+    setupDragDrop();
+    updateProviderLabel();
+    addLog('system', 'Session initialized · Ready to upload dataset');
+  }
+
+  /* ─── DRAG & DROP ─── */
+  function setupDragDrop() {
+    const area = document.getElementById('upload-area');
+    ['dragenter','dragover'].forEach(e => area.addEventListener(e, ev => {
+      ev.preventDefault(); area.classList.add('drag-over');
+    }));
+    ['dragleave','drop'].forEach(e => area.addEventListener(e, ev => {
+      ev.preventDefault(); area.classList.remove('drag-over');
+    }));
+    area.addEventListener('drop', ev => {
+      const file = ev.dataTransfer.files[0];
+      if (file) processFileSelection(file);
+    });
+    area.addEventListener('click', () => document.getElementById('file-input').click());
+  }
+
+  /* ─── FILE SELECT ─── */
+  function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) processFileSelection(file);
+  }
+
+  function processFileSelection(file) {
+    const allowed = ['csv','xlsx','xls'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      showToast('error', 'Invalid file type. Please upload CSV or Excel files.');
+      return;
+    }
+    if (file.size > 16 * 1024 * 1024) {
+      showToast('error', 'File too large. Maximum size is 16 MB.');
+      return;
+    }
+    document.getElementById('upload-area').style.display = 'none';
+    const preview = document.getElementById('upload-preview');
+    preview.style.display = 'block';
+    document.getElementById('prev-fname').textContent = file.name;
+    document.getElementById('prev-fmeta').textContent =
+      `${(file.size / 1024).toFixed(1)} KB · ${ext.toUpperCase()} · Modified ${new Date(file.lastModified).toLocaleDateString()}`;
+
+    // store file reference
+    preview._file = file;
+    addLog('info', `File selected: ${file.name} (${(file.size/1024).toFixed(1)} KB)`);
+  }
+
+  function resetUpload() {
+    document.getElementById('upload-area').style.display = '';
+    document.getElementById('upload-preview').style.display = 'none';
+    document.getElementById('file-input').value = '';
+    addLog('info', 'Upload cleared');
+  }
+
+  function updateProviderLabel() {
+    const prov = document.getElementById('ai-provider').value;
+    const group = document.getElementById('api-key-group');
+    group.style.display = prov ? 'flex' : 'none';
+    document.getElementById('sb-provider').textContent =
+      prov ? (prov === 'anthropic' ? 'Claude (Anthropic)' : 'Groq (Mixtral)') : 'Rule-based';
+  }
+
+  /* ─── STEP 1 → 2: ANALYZE ─── */
+  async function analyzeDataset() {
+    const preview = document.getElementById('upload-preview');
+    const file = preview._file;
+    if (!file) { showToast('warning', 'Please select a file first.'); return; }
+
+    showLoader('Analyzing dataset...', 'Profiling columns, detecting issues...');
+    setStatus('loading', 'Analyzing...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.error || 'Upload failed');
+
+      state.filename = data.profile.filename;
+      state.profile  = data.profile;
+      state.qualityBefore = data.profile.quality_score;
+
+      updateSidebar(data.profile);
+      renderProfile(data.profile);
+
+      goToStep(2);
+      showToast('success', 'Dataset analyzed successfully!');
+      addLog('done', `Profile complete: ${data.profile.basic_info.rows} rows × ${data.profile.basic_info.columns} cols`);
+      setStatus('done', 'Profiled');
+
+    } catch (err) {
+      showToast('error', 'Analysis failed: ' + err.message);
+      addLog('err', 'Analysis error: ' + err.message);
+      setStatus('error', 'Error');
+    } finally {
+      hideLoader();
+    }
+  }
+
+  /* ─── STEP 2 → 3: RECOMMENDATIONS ─── */
+  async function getRecommendations() {
+    if (!state.profile) { showToast('warning', 'Please analyze a dataset first.'); return; }
+    if (state._fetchingRec) return;   // prevent concurrent calls
+    state._fetchingRec = true;
+
+    document.getElementById('rec-loading').style.display = 'flex';
+    document.getElementById('rec-content').style.display = 'none';
+
+    setStatus('loading', 'Getting recommendations...');
+    addLog('step', 'Requesting AI recommendations...');
+
+    const provider = document.getElementById('ai-provider').value;
+    const apiKey   = document.getElementById('api-key-input').value.trim();
+
+    try {
+      const modelSel = document.getElementById(provider + '-model');
+      const model    = modelSel ? modelSel.value : null;
+      const res = await fetch(`${API_BASE}/api/recommend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: state.profile, api_key: apiKey || null, provider: provider || 'rule', model: model })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Recommendation failed');
+
+      state.recommendations = data.recommendations;
+      renderRecommendations(data.recommendations);
+
+      // Show API status in sidebar based on source
+      const src = data.recommendations.source || '';
+      if (src.includes('anthropic')) setConnStatus('connected', '✓ Claude AI');
+      else if (src.includes('groq'))  setConnStatus('connected', '✓ Groq AI');
+      else                            setConnStatus('disconnected', 'Rule-based');
+
+      document.getElementById('rec-loading').style.display = 'none';
+      document.getElementById('rec-content').style.display = 'block';
+      goToStep(3);   // navigate AFTER state is set — no loop
+      showToast('success', 'Recommendations generated!');
+      addLog('done', `Recommendations ready (source: ${data.recommendations.source})`);
+      setStatus('done', 'Recommendations ready');
+
+    } catch (err) {
+      document.getElementById('rec-loading').style.display = 'none';
+      showToast('error', 'Recommendation error: ' + err.message);
+      addLog('err', 'Recommendation error: ' + err.message);
+      setStatus('error', 'Error');
+    } finally {
+      state._fetchingRec = false;
+    }
+  }
+
+  /* ─── STEP 3 → 4: PREPROCESS ─── */
+  async function applyPreprocessing() {
+    if (!state.recommendations) { showToast('warning', 'Get recommendations first.'); return; }
+
+    goToStep(4);
+    setStatus('loading', 'Processing...');
+    addLog('step', 'Starting preprocessing pipeline...');
+
+    const steps = state.recommendations.preprocessing_steps || [];
+    renderProcSteps(steps);
+
+    // Animate through steps
+    await animateProcSteps(steps);
+
+    showLoader('Preprocessing dataset...', 'Applying transformations, splitting data...');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/preprocess`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: state.filename, recommendations: state.recommendations })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Preprocessing failed');
+
+      state.processedFiles.train = data.train_file;
+      state.processedFiles.val   = data.val_file;
+      state.processedFiles.test  = data.test_file;
+      state.shapes = data.shapes;
+      state.processingLog = data.log || [];
+
+      // Update quality after
+      state.qualityAfter = { overall: Math.min(100, (state.qualityBefore.overall || 50) + 18) };
+
+      renderProcessResults(data);
+      enableDownloads(data);
+
+      showToast('success', 'Preprocessing complete!');
+      data.log.forEach(l => addLog('done', l));
+      setStatus('done', 'Complete');
+
+    } catch (err) {
+      showToast('error', 'Preprocessing failed: ' + err.message);
+      addLog('err', 'Processing error: ' + err.message);
+      setStatus('error', 'Error');
+    } finally {
+      hideLoader();
+    }
+  }
+
+  function renderProcSteps(steps) {
+    const el = document.getElementById('proc-steps-mini');
+    el.innerHTML = steps.slice(0,6).map((s, i) =>
+      `<div class="psm-item" id="psm-${i}">
+        <div class="psm-dot"></div>
+        <span>${s}</span>
+      </div>`
+    ).join('');
+  }
+
+  async function animateProcSteps(steps) {
+    for (let i = 0; i < Math.min(steps.length, 6); i++) {
+      const el = document.getElementById(`psm-${i}`);
+      if (!el) continue;
+      el.classList.add('running');
+      document.getElementById('proc-label').textContent = steps[i];
+      await sleep(600);
+      el.classList.remove('running');
+      el.classList.add('done');
+    }
+  }
+
+  /* ─── DOWNLOAD ─── */
+  function downloadFile(type) {
+    const fname = state.processedFiles[type];
+    if (!fname) { showToast('warning', 'File not available yet.'); return; }
+    const url = `${API_BASE}/api/download/${fname}`;
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; a.click();
+    showToast('info', `Downloading ${fname}...`);
+    addLog('info', `Download triggered: ${fname}`);
+  }
+
+  function enableDownloads(data) {
+    const shapes = data.shapes;
+
+    // Sidebar buttons
+    ['train','val','test'].forEach(t => {
+      const btn = document.getElementById(`btn-dl-${t}`);
+      if (btn) btn.disabled = false;
+    });
+
+    const dlTrainSize = document.getElementById('dl-train-size');
+    const dlValSize   = document.getElementById('dl-val-size');
+    const dlTestSize  = document.getElementById('dl-test-size');
+    if (dlTrainSize) dlTrainSize.textContent = `${shapes.train[0]} rows × ${shapes.train[1]} cols`;
+    if (dlValSize)   dlValSize.textContent   = `${shapes.val[0]} rows × ${shapes.val[1]} cols`;
+    if (dlTestSize)  dlTestSize.textContent  = `${shapes.test[0]} rows × ${shapes.test[1]} cols`;
+
+    // Export page
+    ['train','val','test'].forEach(t => {
+      const exBtn = document.getElementById(`ex-btn-${t}`);
+      if (exBtn) exBtn.disabled = false;
+    });
+    setEl('ex-train-rows', shapes.train[0]);
+    setEl('ex-val-rows',   shapes.val[0]);
+    setEl('ex-test-rows',  shapes.test[0]);
+
+    // Shape display in step 4
+    setEl('sr-train-shape', `${shapes.train[0]} × ${shapes.train[1]}`);
+    setEl('sr-val-shape',   `${shapes.val[0]} × ${shapes.val[1]}`);
+    setEl('sr-test-shape',  `${shapes.test[0]} × ${shapes.test[1]}`);
+    // Stat cards
+    setEl('sr-train-rows', shapes.train[0].toLocaleString()); setEl('sr-train-cols', shapes.train[1]);
+    setEl('sr-val-rows',   shapes.val[0].toLocaleString());   setEl('sr-val-cols',   shapes.val[1]);
+    setEl('sr-test-rows',  shapes.test[0].toLocaleString());  setEl('sr-test-cols',  shapes.test[1]);
+
+    // Enable report buttons
+    const btnReport   = document.getElementById('btn-report');
+    const btnGenReport = document.getElementById('btn-gen-report');
+    if (btnReport)    btnReport.disabled    = false;
+    if (btnGenReport) btnGenReport.disabled = false;
+
+    // Show sidebar sections
+    document.getElementById('sb-download-section').style.display = '';
+    document.getElementById('sb-log-section').style.display = '';
+  }
+
+  /* ─── REPORT ─── */
+  function generateReport() {
+    if (!state.profile) { showToast('warning', 'No data to report.'); return; }
+
+    const qs   = state.profile.quality_score;
+    const bi   = state.profile.basic_info;
+    const mis  = state.profile.missing_values;
+    const rec  = state.recommendations || {};
+    const sh   = state.shapes;
+    const log  = state.processingLog;
+    const now  = new Date().toLocaleString();
+
+    const colRows = (state.profile.column_analysis || []).map(c =>
+      `<tr>
+        <td>${c.name}</td>
+        <td>${c.dtype}</td>
+        <td>${c.unique_values}</td>
+        <td>${c.missing_count}</td>
+        <td>${c.missing_percentage.toFixed(1)}%</td>
+        <td>${c.is_identifier ? '🔑 ID' : c.is_constant ? '⚠ CONST' : '✓ OK'}</td>
+      </tr>`
+    ).join('');
+
+    const sugg = (rec.suggestions || []).map(s =>
+      `<div class="rpt-sugg ${s.severity}">
+        <strong>[${s.severity.toUpperCase()}]</strong> ${s.text}
+        <div class="rpt-impact">Impact: ${s.impact}</div>
+      </div>`
+    ).join('');
+
+    const steps = (rec.preprocessing_steps || []).map((s,i) =>
+      `<div class="rpt-step"><span class="rpt-num">${i+1}</span>${s}</div>`
+    ).join('');
+
+    const logHtml = log.map(l => `<div class="rpt-log">✔ ${l}</div>`).join('');
+
+    const html = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<title>DataPrep Report — ${bi.column_names ? bi.column_names[0] || 'Dataset' : 'Dataset'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size:14px;line-height:1.6}
+.rpt-header{background:linear-gradient(135deg,#1a1208,#2e1c08);color:#fff;padding:40px 48px;position:relative;overflow:hidden}
+.rpt-header::after{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(232,98,10,0.15)}
+.rpt-logo{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;margin-bottom:4px}
+.rpt-logo span{color:#f07a2a}
+.rpt-subtitle{font-size:11px;color:#a09070;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.rpt-meta{display:flex;gap:32px;flex-wrap:wrap}
+.rpt-meta-item{display:flex;flex-direction:column;gap:2px}
+.rpt-meta-label{font-size:10px;color:#7a6a5a;letter-spacing:1px;text-transform:uppercase}
+.rpt-meta-val{font-size:14px;color:#fff;font-weight:600;font-family:'JetBrains Mono',monospace}
+.rpt-body{max-width:900px;margin:0 auto;padding:40px 32px}
+.rpt-section{margin-bottom:36px}
+.rpt-section-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#e8620a;border-bottom:2px solid #fde4cc;padding-bottom:10px;margin-bottom:18px}
+.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:0}
+.score-card{background:#fff;border:1px solid #ddd3c0;border-radius:10px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(30,15,0,0.07)}
+.sc-val{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;line-height:1;margin-bottom:4px}
+.sc-label{font-size:10px;color:#8a7a65;letter-spacing:1px;text-transform:uppercase}
+.sc-val.orange{color:#e8620a}.sc-val.ask{color:#1a4a8a}.sc-val.green{color:#1a7a3c}.sc-val.red{color:#c0160f}
+.rpt-table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(30,15,0,0.07)}
+.rpt-table th{background:#f2ebe0;padding:10px 14px;text-align:left;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#5a4a35;border-bottom:2px solid #ddd3c0}
+.rpt-table td{padding:9px 14px;border-bottom:1px solid #ede6d8;color:#5a4a35}
+.rpt-table tr:last-child td{border-bottom:none}
+.rpt-table tr:hover td{background:#faf6f0}
+.rpt-sugg{padding:12px 16px;border-radius:8px;margin-bottom:8px;border-left:4px solid}
+.rpt-sugg.high{background:#ffeaea;border-color:#c0160f}.rpt-sugg.medium{background:#fff3ec;border-color:#e8620a}.rpt-sugg.low{background:#fdf5d8;border-color:#b07a10}
+.rpt-impact{font-size:11px;color:#8a7a65;margin-top:4px}
+.rpt-step{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#fff;border:1px solid #ede6d8;border-radius:6px;margin-bottom:6px}
+.rpt-num{width:22px;height:22px;background:#e8620a;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.rpt-log{padding:6px 12px;background:#1a1208;color:#6abf87;font-family:'JetBrains Mono',monospace;font-size:11px;margin-bottom:4px;border-radius:4px}
+.split-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:0}
+.split-card{background:#fff;border-radius:10px;padding:18px;text-align:center;border:1px solid #ddd3c0;box-shadow:0 2px 8px rgba(30,15,0,0.07)}
+.split-card.train{border-top:4px solid #e8620a}.split-card.val{border-top:4px solid #1a4a8a}.split-card.test{border-top:4px solid #c0160f}
+.split-title{font-size:13px;font-weight:600;margin-bottom:6px}
+.split-shape{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;margin-bottom:2px}
+.split-pct{font-size:11px;color:#8a7a65}
+.rpt-footer{background:#1a1208;color:#6a5a45;text-align:center;padding:20px;font-size:11px;letter-spacing:1px}
+</style></head><body>
+<div class="rpt-header">
+  <div class="rpt-logo">Data<span>Prep</span> Engine</div>
+  <div class="rpt-subtitle">Preprocessing Report</div>
+  <div class="rpt-meta">
+    <div class="rpt-meta-item"><span class="rpt-meta-label">Generated</span><span class="rpt-meta-val">${now}</span></div>
+    <div class="rpt-meta-item"><span class="rpt-meta-label">Session</span><span class="rpt-meta-val">${state.sessionId}</span></div>
+    <div class="rpt-meta-item"><span class="rpt-meta-label">Dataset</span><span class="rpt-meta-val">${state.filename || '—'}</span></div>
+    <div class="rpt-meta-item"><span class="rpt-meta-label">AI Source</span><span class="rpt-meta-val">${rec.source || 'rule_based'}</span></div>
+  </div>
+</div>
+<div class="rpt-body">
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">1. Dataset Summary</div>
+    <div class="score-grid">
+      <div class="score-card"><div class="sc-val orange">${bi.rows}</div><div class="sc-label">Total Rows</div></div>
+      <div class="score-card"><div class="sc-val ask">${bi.columns}</div><div class="sc-label">Columns</div></div>
+      <div class="score-card"><div class="sc-val red">${mis.missing_percentage.toFixed(1)}%</div><div class="sc-label">Missing Data</div></div>
+      <div class="score-card"><div class="sc-val red">${bi.duplicate_rows}</div><div class="sc-label">Duplicates</div></div>
+    </div>
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">2. Data Quality Scores</div>
+    <div class="score-grid">
+      <div class="score-card"><div class="sc-val orange">${qs.overall}</div><div class="sc-label">Overall Score</div></div>
+      <div class="score-card"><div class="sc-val green">${qs.completeness}</div><div class="sc-label">Completeness</div></div>
+      <div class="score-card"><div class="sc-val ask">${qs.consistency}</div><div class="sc-label">Consistency</div></div>
+      <div class="score-card"><div class="sc-val orange">${qs.validity}</div><div class="sc-label">Validity</div></div>
+    </div>
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">3. Column Analysis</div>
+    <table class="rpt-table">
+      <thead><tr><th>Column</th><th>Type</th><th>Unique</th><th>Missing</th><th>Missing %</th><th>Status</th></tr></thead>
+      <tbody>${colRows}</tbody>
+    </table>
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">4. AI Recommendations</div>
+    <p style="margin-bottom:14px;color:#5a4a35">${rec.overall_assessment || '—'}</p>
+    ${sugg}
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">5. Preprocessing Pipeline</div>
+    ${steps}
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">6. Processing Log</div>
+    ${logHtml || '<div class="rpt-log">No processing log available.</div>'}
+  </div>
+
+  <div class="rpt-section">
+    <div class="rpt-section-title">7. Dataset Splits</div>
+    <div class="split-row">
+      <div class="split-card train">
+        <div class="split-title">Training Set</div>
+        <div class="split-shape">${sh.train ? sh.train[0]+' × '+sh.train[1] : '—'}</div>
+        <div class="split-pct">70% of data</div>
+      </div>
+      <div class="split-card val">
+        <div class="split-title">Validation Set</div>
+        <div class="split-shape">${sh.val ? sh.val[0]+' × '+sh.val[1] : '—'}</div>
+        <div class="split-pct">15% of data</div>
+      </div>
+      <div class="split-card test">
+        <div class="split-title">Test Set</div>
+        <div class="split-shape">${sh.test ? sh.test[0]+' × '+sh.test[1] : '—'}</div>
+        <div class="split-pct">15% of data</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="rpt-footer">DataPrep Engine · AI-Powered Preprocessing · Generated ${now}</div>
+</body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dataprep_report_${Date.now()}.html`;
+    a.click();
+    showToast('success', 'Report downloaded!');
+    addLog('done', 'HTML report generated and downloaded');
+  }
+
+  /* ─── RENDER: SIDEBAR ─── */
+  function updateSidebar(profile) {
+    const bi  = profile.basic_info;
+    const mis = profile.missing_values;
+    const qs  = profile.quality_score;
+
+    setEl('sb-filename', bi.column_names ? profile.filename : '—');
+    setEl('sb-rows', bi.rows.toLocaleString());
+    setEl('sb-cols', bi.columns);
+    setEl('sb-memory', bi.memory_usage);
+    setEl('sb-dups', bi.duplicate_rows.toLocaleString());
+    setEl('sb-missing', mis.missing_percentage.toFixed(1) + '%');
+    setEl('sb-quality', `${qs.overall}/100 (${qs.rating})`);
+    setEl('sb-stage', 'Profile');
+
+    // Show quality gauge
+    document.getElementById('sb-quality-section').style.display = '';
+    drawGauge(qs.overall, qs.color);
+    setEl('gauge-score', qs.overall);
+    setEl('gauge-rating', qs.rating);
+    animateBar('qb-completeness', qs.completeness, 'qb-completeness-val');
+    animateBar('qb-consistency',  qs.consistency,  'qb-consistency-val');
+    animateBar('qb-validity',     qs.validity,     'qb-validity-val');
+  }
+
+  /* ─── RENDER: PROFILE ─── */
+  function renderProfile(profile) {
+    const bi  = profile.basic_info;
+    const mis = profile.missing_values;
+    const qs  = profile.quality_score;
+    const dt  = profile.data_types;
+    const ml  = profile.ml_problem_type;
+
+    // Stats
+    setEl('stat-rows',    bi.rows.toLocaleString());
+    setEl('stat-cols',    bi.columns);
+    setEl('stat-missing', mis.missing_percentage.toFixed(1) + '%');
+    setEl('stat-dups',    bi.duplicate_rows.toLocaleString());
+    setEl('stat-score',   qs.overall + '/100');
+    setEl('stat-mltype',  formatMLType(ml.suggested_type));
+
+    // Type distribution
+    const total = Object.values(dt).reduce((a,b)=>a+b,0)||1;
+    const typeColors = { numeric:'#e8620a', categorical:'#1a4a8a', datetime:'#1a7a3c', text:'#b07a10' };
+    document.getElementById('type-dist').innerHTML = Object.entries(dt).map(([k,v]) =>
+      `<div class="td-row">
+        <span class="td-label">${capitalize(k)}</span>
+        <div class="td-bar-bg"><div class="td-bar" style="width:${v/total*100}%;background:${typeColors[k]||'#888'}"></div></div>
+        <span class="td-count">${v}</span>
+      </div>`
+    ).join('');
+
+    // Issues
+    const issues = profile.potential_issues || [];
+    const issueEl = document.getElementById('issues-list');
+    if (issues.length === 0) {
+      issueEl.innerHTML = `<div class="empty-state"><i class="fa fa-circle-check"></i>No critical issues detected</div>`;
+    } else {
+      issueEl.innerHTML = issues.map(iss =>
+        `<div class="issue-item ${iss.severity}">
+          <i class="fa ${iss.severity==='high'?'fa-triangle-exclamation':iss.severity==='medium'?'fa-circle-exclamation':'fa-info-circle'} issue-icon"></i>
+          <div>
+            <div class="issue-text">${iss.description}</div>
+            <div class="issue-sev">${iss.severity} severity</div>
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    // Column table
+    const tbody = document.getElementById('col-tbody');
+    tbody.innerHTML = profile.column_analysis.map(c => {
+      const mpct = c.missing_percentage;
+      const barClass = mpct>50?'miss-high':mpct>20?'miss-medium':mpct>0?'miss-low':'miss-zero';
+      const flags = [];
+      if (c.is_identifier) flags.push('<span class="flag-chip flag-id">🔑 ID</span>');
+      if (c.is_constant)   flags.push('<span class="flag-chip flag-const">⚠ CONST</span>');
+      if (mpct > 30)       flags.push('<span class="flag-chip flag-miss">⚠ HIGH MISS</span>');
+      if (!c.is_identifier && !c.is_constant && mpct===0) flags.push('<span class="flag-chip flag-ok">✓ OK</span>');
+      const samples = (c.sample_values || []).slice(0,3).map(v=>`<code style="font-size:10px;background:#f2ebe0;padding:1px 5px;border-radius:3px">${v}</code>`).join(' ');
+      return `<tr>
+        <td style="font-weight:600;color:#1a1208">${c.name}</td>
+        <td class="mono-cell">${c.dtype}</td>
+        <td class="mono-cell">${c.unique_values}</td>
+        <td class="mono-cell ${c.missing_count>0?'':''}">
+          <span style="color:${c.missing_count>0?'#c0160f':'#1a7a3c'};font-weight:600">${c.missing_count}</span>
+        </td>
+        <td>
+          <div class="miss-pct-bar-wrap">
+            <div class="miss-pct-bar-bg"><div class="miss-pct-bar ${barClass}" style="width:${Math.min(mpct,100)}%"></div></div>
+            <span class="mono-cell" style="font-size:10px">${mpct.toFixed(1)}%</span>
+          </div>
+        </td>
+        <td>${flags.join('')}</td>
+        <td>${samples}</td>
+      </tr>`;
+    }).join('');
+
+    // Missing bars chart
+    const missingCols = mis.columns_with_missing || [];
+    const missingEl = document.getElementById('missing-bars');
+    if (missingCols.length === 0) {
+      missingEl.innerHTML = `<div class="empty-state"><i class="fa fa-circle-check"></i>No missing values found — clean dataset!</div>`;
+    } else {
+      missingEl.innerHTML = missingCols.map(m => {
+        const pct = m.percentage;
+        const col = pct>50?'#c0160f':pct>20?'#e8620a':'#b07a10';
+        return `<div class="mb-row">
+          <span class="mb-label" title="${m.column}">${m.column}</span>
+          <div class="mb-bar-bg">
+            <div class="mb-bar" style="width:${pct}%;background:${col}">
+              <span class="mb-bar-label">${pct.toFixed(1)}%</span>
+            </div>
+          </div>
+          <span class="mono-cell" style="font-size:10px;width:32px;color:#8a7a65">${m.count}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  /* ─── RENDER: RECOMMENDATIONS ─── */
+  function renderRecommendations(rec) {
+    // Source badge
+    const srcBadge = document.getElementById('rec-source-badge');
+    if (rec.source === 'rule_based') {
+      srcBadge.className = 'rec-source-badge orange-badge';
+      srcBadge.textContent = '⚙ Rule-based Engine';
+    } else if (rec.source && rec.source.includes('anthropic')) {
+      srcBadge.className = 'rec-source-badge ask-badge';
+      srcBadge.textContent = '✦ Claude AI (Anthropic)';
+    } else {
+      srcBadge.className = 'rec-source-badge green-badge';
+      srcBadge.textContent = '✦ Groq AI (Mixtral)';
+    }
+    setEl('rec-assess', rec.overall_assessment || '');
+
+    // Suggestions
+    const suggEl = document.getElementById('suggestions-list');
+    const suggs = rec.suggestions || [];
+    if (suggs.length === 0) {
+      suggEl.innerHTML = `<div class="empty-state"><i class="fa fa-circle-check"></i>No critical suggestions — data looks good!</div>`;
+    } else {
+      suggEl.innerHTML = suggs.map(s => {
+        const icons = { high:'fa-triangle-exclamation', medium:'fa-circle-exclamation', low:'fa-info-circle' };
+        return `<div class="sugg-item ${s.severity}">
+          <i class="fa ${icons[s.severity]||'fa-info-circle'} sugg-icon"></i>
+          <div class="sugg-body">
+            <div class="sugg-text">${s.text}</div>
+            <div class="sugg-impact">${s.impact || ''}</div>
+          </div>
+          <span class="sugg-badge ${s.severity}">${s.severity}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // Steps
+    const stepsEl = document.getElementById('steps-list');
+    stepsEl.innerHTML = (rec.preprocessing_steps||[]).map((s,i) =>
+      `<div class="step-item"><div class="step-num">${i+1}</div><span class="step-text">${s}</span></div>`
+    ).join('');
+
+    // Drop Cols
+    const dropEl = document.getElementById('drop-cols-list');
+    const drops = rec.columns_to_drop || [];
+    dropEl.innerHTML = drops.length === 0
+      ? `<div class="empty-state" style="padding:16px"><i class="fa fa-check"></i>No columns to drop</div>`
+      : drops.map(d =>
+          `<div class="rec-item">
+            <div><div class="rec-col">${d.column}</div><div class="rec-reason">${d.reason||''}</div></div>
+          </div>`
+        ).join('');
+
+    // Missing strategy
+    const missEl = document.getElementById('missing-strat-list');
+    const missStrat = rec.missing_value_strategy || {};
+    const missKeys = Object.keys(missStrat);
+    missEl.innerHTML = missKeys.length === 0
+      ? `<div class="empty-state" style="padding:16px"><i class="fa fa-check"></i>No missing values to handle</div>`
+      : missKeys.map(k =>
+          `<div class="rec-item"><span class="rec-col">${k}</span><span class="rec-val">${missStrat[k]}</span></div>`
+        ).join('');
+
+    // Encoding
+    const encEl = document.getElementById('encoding-list');
+    const encMap = rec.encoding_recommendations || {};
+    const encKeys = Object.keys(encMap);
+    encEl.innerHTML = encKeys.length === 0
+      ? `<div class="empty-state" style="padding:16px"><i class="fa fa-check"></i>No categorical encoding needed</div>`
+      : encKeys.map(k =>
+          `<div class="rec-item"><span class="rec-col">${k}</span><span class="rec-val">${encMap[k]}</span></div>`
+        ).join('');
+
+    // Scaling
+    setEl('rec-scaling', (rec.scaling_recommendation||'standard').toUpperCase());
+
+    // Outlier
+    setEl('rec-outlier', (rec.outlier_handling||'iqr').toUpperCase());
+
+    // Split visual
+    const split = rec.data_split || { train:.7, validation:.15, test:.15 };
+    const tPct = Math.round((split.train||.7)*100);
+    const vPct = Math.round((split.validation||.15)*100);
+    const sPct = Math.round((split.test||.15)*100);
+    document.getElementById('split-visual').innerHTML = `
+      <div class="sv-seg sv-train" style="flex:${tPct}">
+        <span class="sv-seg-label">TRAIN</span><span class="sv-seg-pct">${tPct}%</span>
+      </div>
+      <div class="sv-seg sv-val" style="flex:${vPct}">
+        <span class="sv-seg-label">VAL</span><span class="sv-seg-pct">${vPct}%</span>
+      </div>
+      <div class="sv-seg sv-test" style="flex:${sPct}">
+        <span class="sv-seg-label">TEST</span><span class="sv-seg-pct">${sPct}%</span>
+      </div>`;
+  }
+
+  /* ─── RENDER: PROCESS RESULTS ─── */
+  function renderProcessResults(data) {
+    document.getElementById('proc-visual').style.display = 'none';
+    document.getElementById('proc-results').style.display = '';
+
+    const sh = data.shapes;
+    setEl('success-sub', `Processed into Train (${sh.train[0]} rows), Validation (${sh.val[0]} rows), Test (${sh.test[0]} rows)`);
+    setEl('sr-train-shape', `${sh.train[0]} × ${sh.train[1]}`);
+    setEl('sr-val-shape',   `${sh.val[0]} × ${sh.val[1]}`);
+    setEl('sr-test-shape',  `${sh.test[0]} × ${sh.test[1]}`);
+
+    // Before/After compare
+    const qBefore = state.qualityBefore || {};
+    const qAfter  = { overall: Math.min(100, (qBefore.overall||50)+18), completeness: Math.min(100,(qBefore.completeness||60)+20), consistency: Math.min(100,(qBefore.consistency||70)+12) };
+    document.getElementById('compare-grid').innerHTML = `
+      <div class="cg-item">
+        <div class="cg-label">Overall Quality</div>
+        <div class="cg-vals">
+          <span class="cg-before">${qBefore.overall||'—'}</span>
+          <span class="cg-arrow">→</span>
+          <span class="cg-after">${qAfter.overall.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="cg-item">
+        <div class="cg-label">Completeness</div>
+        <div class="cg-vals">
+          <span class="cg-before">${qBefore.completeness||'—'}</span>
+          <span class="cg-arrow">→</span>
+          <span class="cg-after">${qAfter.completeness.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="cg-item">
+        <div class="cg-label">Consistency</div>
+        <div class="cg-vals">
+          <span class="cg-before">${qBefore.consistency||'—'}</span>
+          <span class="cg-arrow">→</span>
+          <span class="cg-after">${qAfter.consistency.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="cg-item">
+        <div class="cg-label">Duplicates</div>
+        <div class="cg-vals">
+          <span class="cg-before">${state.profile?.basic_info?.duplicate_rows||0}</span>
+          <span class="cg-arrow">→</span>
+          <span class="cg-after">0</span>
+        </div>
+      </div>`;
+  }
+
+  /* ─── GAUGE CANVAS ─── */
+  function drawGauge(score, colorHint) {
+    const canvas = document.getElementById('qualityGauge');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H-10, r=80;
+    const startAngle = Math.PI, endAngle = 2*Math.PI;
+
+    // Background arc
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,startAngle,endAngle);
+    ctx.strokeStyle = '#ede6d8';
+    ctx.lineWidth = 14; ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Value arc
+    const pct = Math.min(score,100)/100;
+    const valueEnd = startAngle + (pct * Math.PI);
+    const color = score>=80?'#1a7a3c':score>=60?'#e8620a':score>=40?'#b07a10':'#c0160f';
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,startAngle,valueEnd);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 14; ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Tick marks
+    for (let i=0;i<=10;i++) {
+      const a = Math.PI + (i/10)*Math.PI;
+      const ix1 = cx + (r-20)*Math.cos(a), iy1 = cy + (r-20)*Math.sin(a);
+      const ix2 = cx + (r-28)*Math.cos(a), iy2 = cy + (r-28)*Math.sin(a);
+      ctx.beginPath(); ctx.moveTo(ix1,iy1); ctx.lineTo(ix2,iy2);
+      ctx.strokeStyle = '#ddd3c0'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+
+  /* ─── NAVIGATION ─── */
+  function goToStep(step) {
+    // Validate step flow
+    if (step > 1 && !state.profile) { showToast('warning','Please upload and analyze a dataset first.'); return; }
+    if (step > 2 && !state.recommendations && step !== 3) { showToast('warning','Please get recommendations first.'); return; }
+
+    if (step === 3 && !state.recommendations && !state._fetchingRec) {
+      setTimeout(() => getRecommendations(), 50);
+    }
+    state.currentStep = step;
+    const panels = ['upload','profile','recommend','process','export'];
+    panels.forEach((p,i) => {
+      const el = document.getElementById(`panel-${p}`);
+      if (el) el.classList.toggle('active', i+1 === step);
+    });
+
+    // Header step highlights
+    for (let i=1;i<=5;i++) {
+      const el = document.getElementById(`hstep-${i}`);
+      if (!el) continue;
+      el.classList.remove('active','done');
+      if (i === step)  el.classList.add('active');
+      if (i < step)    el.classList.add('done');
+    }
+
+    setEl('sb-stage', panels[step-1] ? capitalize(panels[step-1]) : '—');
+  }
+
+  /* ─── RESET ─── */
+  function resetSession() {
+    // Reset all state including guards
+    Object.assign(state, {
+      sessionId:         'SID-' + Date.now().toString(36).toUpperCase(),
+      currentStep:       1,
+      filename:          null,
+      profile:           null,
+      recommendations:   null,
+      processedFiles:    { train: null, val: null, test: null },
+      shapes:            {},
+      processingLog:     [],
+      qualityBefore:     null,
+      qualityAfter:      null,
+      connectedProvider: null,
+      connectedModel:    null,
+      _fetchingRec:      false,   // ← critical: reset guard
+    });
+
+    // Helper: safe set display
+    const show  = (id, d='') => { const e = document.getElementById(id); if (e) e.style.display = d; };
+    const setTxt = (id, v)   => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    const setVal = (id, v)   => { const e = document.getElementById(id); if (e) e.value = v; };
+
+    // Header
+    setTxt('sb-session-id', state.sessionId.slice(-8));
+
+    // Upload area
+    show('upload-area');
+    show('upload-preview', 'none');
+    setVal('file-input', '');
+    show('api-settings-card');
+
+    // Hidden fields
+    setVal('ai-provider', '');
+    setVal('api-key-input', '');
+
+    // Sidebar fields
+    ['sb-filename','sb-rows','sb-cols','sb-memory','sb-dups','sb-missing','sb-quality']
+      .forEach(id => setTxt(id, '—'));
+    setTxt('sb-stage', 'Upload');
+    setTxt('sb-provider', 'Rule-based');
+
+    // Sidebar sections
+    show('sb-quality-section',  'none');
+    show('sb-download-section', 'none');
+    show('sb-log-section',      'none');
+
+    // Log
+    const log = document.getElementById('log-container');
+    if (log) log.innerHTML = '';
+
+    // Recommendations panel
+    show('rec-content', 'none');
+    show('rec-loading', 'none');
+
+    // Processing panel
+    show('proc-visual');
+    show('proc-results', 'none');
+    setTxt('proc-label', 'Initializing pipeline...');
+    const mini = document.getElementById('proc-steps-mini');
+    if (mini) mini.innerHTML = '';
+
+    // Download buttons
+    ['train','val','test'].forEach(t => {
+      const b1 = document.getElementById(`btn-dl-${t}`);
+      const b2 = document.getElementById(`ex-btn-${t}`);
+      if (b1) b1.disabled = true;
+      if (b2) b2.disabled = true;
+    });
+
+    // Connection status
+    setConnStatus('disconnected', 'Not Connected');
+    const trAnt = document.getElementById('test-result-anthropic');
+    const trGrq = document.getElementById('test-result-groq');
+    if (trAnt) trAnt.innerHTML = '';
+    if (trGrq) trGrq.innerHTML = '';
+
+    // Key inputs
+    const antKey = document.getElementById('anthropic-key');
+    const grqKey = document.getElementById('groq-key');
+    if (antKey) { antKey.value = ''; antKey.style.borderColor = ''; }
+    if (grqKey) { grqKey.value = ''; grqKey.style.borderColor = ''; }
+
+    // Provider tabs — back to Rule-based
+    setProvider('');
+
+    // Navigate to step 1
+    state.currentStep = 1;
+    const panels = ['upload','profile','recommend','process','export'];
+    panels.forEach((p, i) => {
+      const el = document.getElementById(`panel-${p}`);
+      if (el) el.classList.toggle('active', i === 0);
+    });
+    // Update header nav pills
+    document.querySelectorAll('.nav-step').forEach((el, i) => {
+      el.classList.toggle('active', i === 0);
+      el.classList.toggle('done', false);
+    });
+
+    setStatus('idle', 'Ready');
+    addLog('system', 'New session started — ready for upload');
+    showToast('info', 'Session reset — ready for new dataset');
+  }
+
+  /* ─── UI HELPERS ─── */
+  function setEl(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function animateBar(barId, pct, valId) {
+    const bar = document.getElementById(barId);
+    const valEl = document.getElementById(valId);
+    if (bar) setTimeout(() => { bar.style.width = Math.min(pct,100) + '%'; }, 100);
+    if (valEl) valEl.textContent = pct.toFixed(1) + '%';
+  }
+
+  function setStatus(type, text) {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (dot) { dot.className = `status-dot ${type}`; }
+    if (txt) txt.textContent = text;
+  }
+
+  function showLoader(text, sub) {
+    document.getElementById('loader-text').textContent = text;
+    document.getElementById('loader-sub').textContent  = sub;
+    document.getElementById('loader-percent').textContent = '0%';
+    document.getElementById('loader-fill').style.width = '0%';
+    document.getElementById('overlay-loader').style.display = 'flex';
+    startProgressBar();
+  }
+
+  let _progressTimer = null;
+  function startProgressBar() {
+    clearInterval(_progressTimer);
+    let pct = 0;
+    const steps = [10,20,30,40,50,60,70,80,90];
+    let i = 0;
+    _progressTimer = setInterval(() => {
+      if (i < steps.length) {
+        pct = steps[i++];
+        document.getElementById('loader-percent').textContent = pct + '%';
+        document.getElementById('loader-fill').style.width = pct + '%';
+      } else {
+        clearInterval(_progressTimer);
+      }
+    }, 350);
+  }
+
+  function finishProgressBar() {
+    clearInterval(_progressTimer);
+    document.getElementById('loader-percent').textContent = '100%';
+    document.getElementById('loader-fill').style.width = '100%';
+  }
+
+  function hideLoader() {
+    finishProgressBar();
+    setTimeout(() => {
+      document.getElementById('overlay-loader').style.display = 'none';
+    }, 400);
+  }
+
+  function addLog(type, msg) {
+    const container = document.getElementById('log-container');
+    if (!container) return;
+    if (container.style.display === 'none') return;
+    const el = document.createElement('div');
+    el.className = `log-entry ${type}`;
+    const prefix = { system:'◈', step:'▶', info:'◉', done:'✔', warn:'⚠', err:'✖' }[type] || '·';
+    el.textContent = `${prefix} ${msg}`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function showToast(type, msg) {
+    const container = document.getElementById('toast-container');
+    const icons = { success:'fa-circle-check', error:'fa-circle-xmark', warning:'fa-triangle-exclamation', info:'fa-circle-info' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fa ${icons[type]||'fa-info-circle'} toast-icon"></i><span class="toast-msg">${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('removing');
+      setTimeout(() => toast.remove(), 320);
+    }, 3800);
+  }
+
+  function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  }
+
+  function formatMLType(t) {
+    const map = {
+      binary_classification:'Binary Class',
+      multiclass_classification:'Multiclass',
+      regression:'Regression',
+      unknown:'Unknown'
+    };
+    return map[t] || t;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+  /* ─── API PROVIDER MANAGEMENT ─── */
+
+  function setProvider(prov) {
+    // Update hidden field
+    document.getElementById('ai-provider').value = prov;
+
+    // Tab active state
+    ['none','anthropic','groq'].forEach(p => {
+      const tab = document.getElementById('tab-' + (p||'none'));
+      if (tab) tab.classList.toggle('active', p === prov || (!prov && p==='none'));
+    });
+
+    // Show correct panel
+    ['none','anthropic','groq'].forEach(p => {
+      const panel = document.getElementById('panel-' + (p||'none'));
+      if (panel) panel.style.display = (p === prov || (!prov && p==='none')) ? '' : 'none';
+    });
+
+    // Reset connection status when switching
+    if (prov !== state.connectedProvider) {
+      setConnStatus('disconnected', 'Not Connected');
+      document.getElementById('api-key-input').value = '';
+    } else if (state.connectedProvider) {
+      setConnStatus('connected', 'Connected');
+    }
+
+    // Update sidebar
+    const labels = { '': 'Rule-based', 'anthropic': 'Claude AI', 'groq': 'Groq AI' };
+    setEl('sb-provider', labels[prov] || 'Rule-based');
+    addLog('info', prov ? `Provider switched to: ${labels[prov]}` : 'Using rule-based engine');
+  }
+
+  function onKeyInput(provider) {
+    const keyEl = document.getElementById(provider + '-key');
+    const testBtn = document.getElementById('btn-test-' + provider);
+    if (!keyEl || !testBtn) return;
+    const val = keyEl.value.trim();
+    const valid = provider === 'anthropic' ? val.startsWith('sk-ant-') : val.startsWith('gsk_');
+    testBtn.disabled = !val;
+    // sync hidden field
+    if (document.getElementById('ai-provider').value === provider) {
+      document.getElementById('api-key-input').value = val;
+    }
+    // Visual hint on key format
+    keyEl.style.borderColor = val.length > 10
+      ? (valid ? 'var(--green)' : 'var(--orange)')
+      : 'var(--cream-border)';
+  }
+
+  function toggleKeyVisibility(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    const icon = btn.querySelector('i');
+    if (icon) { icon.className = showing ? 'fa fa-eye' : 'fa fa-eye-slash'; }
+  }
+
+  async function testConnection(provider) {
+    const keyEl   = document.getElementById(provider + '-key');
+    const resultEl = document.getElementById('test-result-' + provider);
+    const testBtn  = document.getElementById('btn-test-' + provider);
+    if (!keyEl || !resultEl) return;
+
+    const apiKey = keyEl.value.trim();
+    if (!apiKey) { showToast('warning', 'Please enter an API key first.'); return; }
+
+    const modelEl = document.getElementById(provider + '-model');
+    const model   = modelEl ? modelEl.value : (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'mixtral-8x7b-32768');
+
+    // UI: testing state
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Testing...';
+    setConnStatus('connecting', 'Connecting...');
+    resultEl.innerHTML = '';
+    addLog('step', `Testing ${provider === 'anthropic' ? 'Claude AI' : 'Groq AI'} connection...`);
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/test-connection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: apiKey, model })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Store connection
+        state.connectedProvider = provider;
+        document.getElementById('ai-provider').value    = provider;
+        document.getElementById('api-key-input').value  = apiKey;
+
+        setConnStatus('connected', 'Connected ✓');
+        resultEl.innerHTML = `<span class="test-ok"><i class="fa fa-circle-check"></i> Connected to ${data.model_name || model}</span>`;
+        showToast('success', `${provider === 'anthropic' ? 'Claude AI' : 'Groq AI'} connected successfully!`);
+        addLog('done', `API connected: ${data.model_name || model}`);
+        setEl('sb-provider', provider === 'anthropic' ? 'Claude AI ✓' : 'Groq AI ✓');
+      } else {
+        throw new Error(data.error || 'Connection failed');
+      }
+    } catch (err) {
+      state.connectedProvider = null;
+      setConnStatus('error', 'Failed');
+      const msg = friendlyApiError(err.message, provider);
+      resultEl.innerHTML = `<span class="test-err"><i class="fa fa-circle-xmark"></i> ${msg}</span>`;
+      showToast('error', 'Connection failed: ' + msg);
+      addLog('err', 'API connection error: ' + err.message);
+    } finally {
+      testBtn.disabled = false;
+      testBtn.innerHTML = '<i class="fa fa-plug"></i> Test Connection';
+    }
+  }
+
+  function friendlyApiError(msg, provider) {
+    if (msg.includes('401') || msg.includes('authentication') || msg.includes('invalid_api_key'))
+      return 'Invalid API key — please check and retry';
+    if (msg.includes('429') || msg.includes('rate_limit'))
+      return 'Rate limit reached — wait a moment and retry';
+    if (msg.includes('403'))
+      return 'Access denied — check your account permissions';
+    if (msg.includes('network') || msg.includes('fetch'))
+      return 'Network error — is Flask server running?';
+    if (provider === 'groq' && !msg.includes('gsk_'))
+      return 'Groq keys must start with gsk_';
+    return msg.length > 80 ? msg.slice(0, 80) + '...' : msg;
+  }
+
+  function setConnStatus(type, label) {
+    const dot   = document.getElementById('conn-dot');
+    const lbl   = document.getElementById('conn-label');
+    if (dot) dot.className = `conn-dot ${type}`;
+    if (lbl) lbl.textContent = label;
+
+    // Sync sidebar indicator
+    const sbDot = document.getElementById('sb-api-dot');
+    const sbLbl = document.getElementById('sb-api-label');
+    const colors = { connected:'#1a7a3c', connecting:'#e8620a', error:'#c0160f', disconnected:'#bbb' };
+    if (sbDot) sbDot.style.background = colors[type] || '#bbb';
+    if (sbLbl) {
+      sbLbl.textContent = label;
+      sbLbl.style.color = colors[type] || 'var(--text-light)';
+    }
+  }
+
+  async function quickTestApi() {
+    // Provider and key come from app.py — just ping the server
+    const sbLbl = document.getElementById('sb-api-label');
+    const sbDot = document.getElementById('sb-api-dot');
+    if (sbDot) sbDot.style.background = '#e8620a';
+    if (sbLbl) sbLbl.textContent = 'Testing...';
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/test-connection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})   // server uses its own configured key + provider
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConnStatus('connected', `✓ ${data.model_name || data.provider || 'AI'}`);
+        showToast('success', `API working — connected to ${data.model_name || data.provider}`);
+        addLog('done', `API test passed: ${data.model_name || provider}`);
+      } else {
+        throw new Error(data.error || 'Test failed');
+      }
+    } catch(err) {
+      setConnStatus('error', '✗ Failed');
+      showToast('error', 'API test failed: ' + err.message);
+      addLog('err', 'API test failed: ' + err.message);
+    }
+  }
+
+  const DEFAULT_PROVIDER_UI = 'anthropic';
+
+  /* ─── PUBLIC API ─── */
+  return {
+    init,
+    handleFileSelect,
+    resetUpload,
+    updateProviderLabel,
+    analyzeDataset,
+    getRecommendations,
+    goToStep,
+    applyPreprocessing,
+    downloadFile,
+    generateReport,
+    resetSession,
+    setProvider,
+    onKeyInput,
+    toggleKeyVisibility,
+    testConnection,
+    quickTestApi,
+  };
+
+})();
+
+/* ─── BOOT ─── */
+document.addEventListener('DOMContentLoaded', () => App.init());
+
+</script>
+</body>
+</html>
