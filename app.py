@@ -403,13 +403,33 @@ class DataPreprocessor:
 
     def _handle_missing_values(self):
         filled = 0
-        for col, method in self.rec.get('missing_value_strategy', {}).items():
-            if col not in self.df.columns: continue
-            if   method == 'mean':   self.df[col].fillna(self.df[col].mean(),   inplace=True); filled += 1
-            elif method == 'median': self.df[col].fillna(self.df[col].median(), inplace=True); filled += 1
+        strategy = self.rec.get('missing_value_strategy', {})
+
+        # Always impute ALL columns with missing values
+        # Use recommended strategy if available, otherwise auto-detect
+        for col in self.df.columns:
+            if self.df[col].isnull().sum() == 0:
+                continue
+            method = strategy.get(col)
+            if not method:
+                # Auto-detect: numeric → median, categorical → mode
+                if pd.api.types.is_numeric_dtype(self.df[col]):
+                    method = 'median'
+                else:
+                    method = 'mode'
+
+            if   method == 'mean':
+                self.df[col].fillna(self.df[col].mean(), inplace=True); filled += 1
+            elif method == 'median':
+                self.df[col].fillna(self.df[col].median(), inplace=True); filled += 1
             elif method == 'mode':
                 m = self.df[col].mode()
                 if len(m): self.df[col].fillna(m[0], inplace=True); filled += 1
+            elif method == 'drop_rows':
+                before = len(self.df)
+                self.df.dropna(subset=[col], inplace=True)
+                self.log.append(f"Dropped {before - len(self.df)} rows with missing '{col}'")
+
         if filled: self.log.append(f"Imputed missing values in {filled} column(s)")
 
     def _encode_categoricals(self):
