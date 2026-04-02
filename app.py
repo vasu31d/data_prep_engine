@@ -45,6 +45,20 @@ def _use_groq() -> bool:
     return bool(GROQ_API_KEY and GROQ_API_KEY.startswith('gsk_'))
 
 
+def _is_already_scaled(series: pd.Series) -> bool:
+    """Detect if a numeric column is already standardized (mean≈0, std≈1)."""
+    clean = series.dropna()
+    if len(clean) < 5:
+        return False
+    return abs(clean.mean()) < 0.5 and 0.5 < clean.std() < 2.0
+
+
+def _is_binary_column(series: pd.Series) -> bool:
+    """True if column only contains 0 and 1 (already one-hot encoded)."""
+    unique_vals = set(series.dropna().unique())
+    return unique_vals <= {0, 1, True, False}
+
+
 # ─── Data Quality Scorer ────────────────────────────────────────────────────
 class DataQualityScorer:
 
@@ -208,6 +222,10 @@ class DatasetProfiler:
             is_numeric = pd.api.types.is_numeric_dtype(self.df[col])
             is_categorical = self.df[col].dtype in ['object', 'category']
 
+            # Boolean columns → skip (already encoded, not targets)
+            if self.df[col].dtype == bool:
+                continue
+
             # Categorical columns → always classification
             if is_categorical:
                 if uc == 2:
@@ -219,30 +237,25 @@ class DatasetProfiler:
             if not is_numeric:
                 continue
 
-            # Integer columns with few unique values → classification
             is_int = str(self.df[col].dtype).startswith('int') or (
                 self.df[col].dropna() == self.df[col].dropna().astype(int)
             ).all() if not self.df[col].isnull().all() else False
 
-            ratio = uc / n_rows  # unique ratio
+            ratio = uc / n_rows
 
             if uc == 2:
                 targets.append({'column': col, 'type': 'binary_classification', 'confidence': 'high', 'unique_values': int(uc)})
             elif uc <= 20 and (is_int or ratio < 0.01):
-                # Few unique integers or very low cardinality → classification
                 targets.append({'column': col, 'type': 'multiclass_classification', 'confidence': 'high', 'unique_values': int(uc)})
             elif ratio > 0.05:
-                # High cardinality continuous → regression
                 targets.append({'column': col, 'type': 'regression', 'confidence': 'medium', 'unique_values': int(uc)})
             else:
                 targets.append({'column': col, 'type': 'multiclass_classification', 'confidence': 'low', 'unique_values': int(uc)})
 
-        # Pick best suggested type — prefer classification candidates
         classification_types = [t for t in targets if 'classification' in t['type']]
         regression_types     = [t for t in targets if t['type'] == 'regression']
 
         if classification_types:
-            # Sort by confidence: high > medium > low, fewer unique values first
             classification_types.sort(key=lambda x: ({'high':0,'medium':1,'low':2}[x['confidence']], x['unique_values']))
             suggested = classification_types[0]['type']
         elif regression_types:
@@ -267,8 +280,6 @@ class PreprocessingEngine:
             except Exception as e:
                 print(f"[Groq error — falling back to rule-based] {e}")
         return self._rule_based_recommendations(profile)
-
-    # ── Groq path ───────────────────────────────────────────────────────────
 
     def _groq_recommendations(self, profile: Dict) -> Dict:
         cols = '\n'.join(
@@ -309,8 +320,6 @@ Return ONLY valid JSON (no markdown, no backticks):
             return rec
         except Exception:
             return self._rule_based_recommendations(profile)
-
-    # ── Rule-based path ─────────────────────────────────────────────────────
 
     def _rule_based_recommendations(self, profile: Dict) -> Dict:
         rec = {
@@ -353,7 +362,7 @@ Return ONLY valid JSON (no markdown, no backticks):
             steps.append(f"Impute missing values in {len(rec['missing_value_strategy'])} columns")
         if rec['encoding_recommendations']:
             steps.append(f"Encode {len(rec['encoding_recommendations'])} categorical columns")
-        steps += ["Cap outliers with IQR method", "Scale features with StandardScaler", "Split 70/15/15 train/val/test"]
+        steps += ["Convert bool columns to int (0/1)", "Cap outliers with IQR method (continuous cols only)", "Scale continuous features (skip already-scaled & binary cols)", "Split 70/15/15 train/val/test"]
         rec['preprocessing_steps'] = steps
 
         qs, mp, dc = profile['quality_score']['overall'], profile['missing_values']['missing_percentage'], profile['basic_info']['duplicate_rows']
@@ -380,13 +389,22 @@ class DataPreprocessor:
         self.log = []
 
     def apply_all_preprocessing(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str]]:
+        self._convert_bools()          # FIX 1: bool → int FIRST
         self._drop_columns()
         self._remove_duplicates()
         self._handle_missing_values()
         self._encode_categoricals()
         self._handle_outliers()
-        self._scale_features()
+        self._scale_features()         # FIX 2 & 3: smart scaling
         return (*self._split_data(), self.log)
+
+    # ── FIX 1: Convert bool columns to int ──────────────────────────────────
+    def _convert_bools(self):
+        bool_cols = self.df.select_dtypes(include='bool').columns.tolist()
+        if bool_cols:
+            self.df[bool_cols] = self.df[bool_cols].astype(int)
+            self.log.append(f"Converted {len(bool_cols)} bool column(s) to int (0/1): "
+                            f"{', '.join(bool_cols[:3])}{'...' if len(bool_cols) > 3 else ''}")
 
     def _drop_columns(self):
         cols = [i['column'] for i in self.rec.get('columns_to_drop', [])]
@@ -405,14 +423,11 @@ class DataPreprocessor:
         filled = 0
         strategy = self.rec.get('missing_value_strategy', {})
 
-        # Always impute ALL columns with missing values
-        # Use recommended strategy if available, otherwise auto-detect
         for col in self.df.columns:
             if self.df[col].isnull().sum() == 0:
                 continue
             method = strategy.get(col)
             if not method:
-                # Auto-detect: numeric → median, categorical → mode
                 if pd.api.types.is_numeric_dtype(self.df[col]):
                     method = 'median'
                 else:
@@ -444,19 +459,46 @@ class DataPreprocessor:
 
     def _handle_outliers(self):
         if self.rec.get('outlier_handling') != 'iqr': return
+        # FIX 2: Only cap outliers on continuous (non-binary) numeric columns
         num_cols = self.df.select_dtypes(include=[np.number]).columns
-        for col in num_cols:
+        continuous_cols = [c for c in num_cols if not _is_binary_column(self.df[c])]
+        for col in continuous_cols:
             Q1, Q3 = self.df[col].quantile(0.25), self.df[col].quantile(0.75)
             self.df[col] = self.df[col].clip(Q1 - 1.5*(Q3-Q1), Q3 + 1.5*(Q3-Q1))
-        if len(num_cols): self.log.append(f"IQR outlier capping on {len(num_cols)} column(s)")
+        if continuous_cols:
+            self.log.append(f"IQR outlier capping on {len(continuous_cols)} continuous column(s)")
 
     def _scale_features(self):
+        # FIX 3: Skip binary columns AND already-scaled columns
         scaling  = self.rec.get('scaling_recommendation', 'standard')
         num_cols = self.df.select_dtypes(include=[np.number]).columns
-        if not len(num_cols) or scaling == 'none': return
+
+        cols_to_scale = [
+            c for c in num_cols
+            if not _is_binary_column(self.df[c])       # skip 0/1 encoded cols
+            and not _is_already_scaled(self.df[c])     # skip already standardized cols
+        ]
+
+        if not cols_to_scale or scaling == 'none':
+            already_scaled = [c for c in num_cols if _is_already_scaled(self.df[c])]
+            binary_cols    = [c for c in num_cols if _is_binary_column(self.df[c])]
+            if already_scaled:
+                self.log.append(f"Skipped scaling: {len(already_scaled)} column(s) already standardized")
+            if binary_cols:
+                self.log.append(f"Skipped scaling: {len(binary_cols)} binary column(s) preserved as 0/1")
+            return
+
         scaler = {'standard': StandardScaler(), 'minmax': MinMaxScaler(), 'robust': RobustScaler()}.get(scaling, StandardScaler())
-        self.df[num_cols] = scaler.fit_transform(self.df[num_cols])
-        self.log.append(f"{scaling.title()} scaling on {len(num_cols)} column(s)")
+        self.df[cols_to_scale] = scaler.fit_transform(self.df[cols_to_scale])
+        self.log.append(f"{scaling.title()} scaling applied to {len(cols_to_scale)} column(s)")
+
+        # Log what was skipped
+        skipped_binary  = [c for c in num_cols if _is_binary_column(self.df[c])]
+        skipped_scaled  = [c for c in num_cols if _is_already_scaled(self.df[c]) and c not in cols_to_scale]
+        if skipped_binary:
+            self.log.append(f"Preserved {len(skipped_binary)} binary column(s) as 0/1 (not scaled)")
+        if skipped_scaled:
+            self.log.append(f"Skipped {len(skipped_scaled)} already-standardized column(s)")
 
     def _split_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         split = self.rec.get('data_split', {'train': 0.7, 'validation': 0.15, 'test': 0.15})
@@ -556,13 +598,13 @@ def test_connection():
             model=GROQ_MODEL,
             messages=[{"role": "user", "content": "Reply with only the word: OK"}],
             max_tokens=5, temperature=0)
-        labels = {'mixtral-8x7b-32768': 'Mixtral 8x7B', 'llama3-70b-8192': 'LLaMA 3 70B', 'gemma2-9b-it': 'Gemma 2 9B'}
+        labels = {'mixtral-8x7b-32768': 'Mixtral 8x7B', 'llama3-70b-8192': 'LLaMA 3 70B', 'llama-3.3-70b-versatile': 'LLaMA 3.3 70B', 'gemma2-9b-it': 'Gemma 2 9B'}
         return jsonify({'success': True, 'provider': 'groq', 'model': GROQ_MODEL,
                         'model_name': labels.get(GROQ_MODEL, GROQ_MODEL),
                         'reply': resp.choices[0].message.content.strip()})
     except Exception as e:
         err = str(e)
-        print(f"[test-connection error] {err}")   # ← shows in terminal
+        print(f"[test-connection error] {err}")
         if '401' in err or 'invalid' in err.lower(): err = 'Invalid API key — check your gsk_... key'
         elif '429' in err or 'rate' in err.lower():  err = 'Rate limit — wait and retry'
         elif '403' in err:                            err = 'Access denied'
