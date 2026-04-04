@@ -1513,6 +1513,40 @@ header {
           </div>
         </div>
 
+        <!-- Dataset Preview -->
+        <div class="card" id="preview-section" style="margin-bottom:20px">
+          <div class="card-title orange-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span><i class="fa fa-eye"></i> Dataset Preview</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="preview-split" onchange="App.loadPreview()" style="font-size:11px;padding:4px 10px;border:1px solid var(--cream-border);border-radius:4px;background:var(--cream);cursor:pointer">
+                <option value="train">Training Set</option>
+                <option value="val">Validation Set</option>
+                <option value="test">Test Set</option>
+              </select>
+              <button onclick="App.loadPreview()" style="font-size:11px;padding:4px 12px;border:1px solid var(--orange-mid);border-radius:4px;background:var(--orange-pale);color:var(--orange);cursor:pointer;font-weight:600">
+                <i class="fa fa-rotate-right"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="preview-stats" style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap"></div>
+          <div id="preview-loading" style="display:none;text-align:center;padding:20px;color:var(--text-light)">
+            <i class="fa fa-spinner fa-spin"></i> Loading preview...
+          </div>
+          <div id="preview-empty" style="text-align:center;padding:32px;color:var(--text-light);font-size:13px">
+            <i class="fa fa-table" style="font-size:28px;display:block;margin-bottom:10px;opacity:0.3"></i>
+            Process your dataset first to see a preview here.
+          </div>
+          <div id="preview-table-wrap" style="display:none;overflow-x:auto;border-radius:8px;border:1px solid var(--cream-border)">
+            <table id="preview-table" class="data-table" style="font-size:11px;min-width:600px">
+              <thead id="preview-thead"></thead>
+              <tbody id="preview-tbody"></tbody>
+            </table>
+          </div>
+          <div id="preview-note" style="display:none;font-size:11px;color:var(--text-light);margin-top:8px;text-align:center">
+            Showing first 20 rows · <span id="preview-shape"></span>
+          </div>
+        </div>
+
         <!-- Report Card -->
         <div class="card report-card">
           <div class="report-header">
@@ -1873,6 +1907,9 @@ const App = (() => {
     // Show sidebar sections
     document.getElementById('sb-download-section').style.display = '';
     document.getElementById('sb-log-section').style.display = '';
+
+    // Auto-load preview on train split
+    setTimeout(() => loadPreview(), 500);
   }
 
   /* ─── REPORT ─── */
@@ -2752,6 +2789,86 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
 
   const DEFAULT_PROVIDER_UI = 'anthropic';
 
+  /* ─── DATASET PREVIEW ─── */
+  async function loadPreview() {
+    const split    = document.getElementById('preview-split')?.value || 'train';
+    const filename = state.processedFiles[split];
+    if (!filename) { return; }
+
+    const loading  = document.getElementById('preview-loading');
+    const empty    = document.getElementById('preview-empty');
+    const wrap     = document.getElementById('preview-table-wrap');
+    const note     = document.getElementById('preview-note');
+    const stats    = document.getElementById('preview-stats');
+
+    loading.style.display = 'block';
+    empty.style.display   = 'none';
+    wrap.style.display    = 'none';
+    note.style.display    = 'none';
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/preview/${filename}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      loading.style.display = 'none';
+
+      // Stats bar
+      const missing = data.missing;
+      const colorMap = { '0': 'var(--green)', 'ok': 'var(--green)' };
+      stats.innerHTML = `
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <span style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;background:var(--orange-pale);color:var(--orange);border:1px solid var(--orange-mid)">
+            ${data.shape[0].toLocaleString()} rows
+          </span>
+          <span style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;background:var(--ask-pale);color:var(--ask);border:1px solid var(--ask-mid)">
+            ${data.shape[1]} columns
+          </span>
+          <span style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;background:${missing===0?'var(--green-pale)':'var(--red-pale)'};color:${missing===0?'var(--green)':'var(--red)'};border:1px solid ${missing===0?'var(--green-mid)':'var(--red-mid)'}">
+            ${missing===0 ? '✓ No missing values' : '⚠ '+missing+' missing values'}
+          </span>
+        </div>`;
+
+      // Build table header
+      const thead = document.getElementById('preview-thead');
+      const tbody  = document.getElementById('preview-tbody');
+      thead.innerHTML = '<tr>' + data.columns.map(col => {
+        const dtype  = data.dtypes[col] || '';
+        const isNum  = dtype.includes('float') || dtype.includes('int');
+        const color  = isNum ? 'var(--ask)' : 'var(--orange)';
+        return `<th style="white-space:nowrap">
+          <div>${col}</div>
+          <div style="font-size:9px;font-weight:400;color:${color};opacity:0.8">${dtype}</div>
+        </th>`;
+      }).join('') + '</tr>';
+
+      // Build table body with color coding
+      tbody.innerHTML = data.rows.map(row => {
+        return '<tr>' + row.map((cell, i) => {
+          const dtype = data.dtypes[data.columns[i]] || '';
+          const isNum = dtype.includes('float') || dtype.includes('int');
+          const isNull = cell === null || cell === undefined;
+          let display = isNull ? '<span style="color:var(--red);font-weight:700">NaN</span>' :
+                        isNum  ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px">${Number(cell).toFixed(4)}</span>` :
+                                 String(cell);
+          const bg = isNull ? 'background:var(--red-pale)' : '';
+          return `<td style="${bg}">${display}</td>`;
+        }).join('') + '</tr>';
+      }).join('');
+
+      wrap.style.display  = 'block';
+      note.style.display  = 'block';
+      document.getElementById('preview-shape').textContent =
+        `Full dataset: ${data.shape[0].toLocaleString()} × ${data.shape[1]} · Split: ${split}`;
+
+    } catch(err) {
+      loading.style.display = 'none';
+      empty.style.display   = 'block';
+      empty.innerHTML = `<i class="fa fa-triangle-exclamation" style="font-size:28px;display:block;margin-bottom:10px;color:var(--orange)"></i>
+                         Preview failed: ${err.message}`;
+    }
+  }
+
   /* ─── PUBLIC API ─── */
   return {
     init,
@@ -2770,6 +2887,7 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
     toggleKeyVisibility,
     testConnection,
     quickTestApi,
+    loadPreview,
   };
 
 })();

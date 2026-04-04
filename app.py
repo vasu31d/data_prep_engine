@@ -45,20 +45,6 @@ def _use_groq() -> bool:
     return bool(GROQ_API_KEY and GROQ_API_KEY.startswith('gsk_'))
 
 
-def _is_already_scaled(series: pd.Series) -> bool:
-    """Detect if a numeric column is already standardized (mean≈0, std≈1)."""
-    clean = series.dropna()
-    if len(clean) < 5:
-        return False
-    return abs(clean.mean()) < 0.5 and 0.5 < clean.std() < 2.0
-
-
-def _is_binary_column(series: pd.Series) -> bool:
-    """True if column only contains 0 and 1 (already one-hot encoded)."""
-    unique_vals = set(series.dropna().unique())
-    return unique_vals <= {0, 1, True, False}
-
-
 # ─── Data Quality Scorer ────────────────────────────────────────────────────
 class DataQualityScorer:
 
@@ -211,59 +197,85 @@ class DatasetProfiler:
         return issues
 
     def _detect_ml_problem_type(self) -> Dict:
-        targets = []
+        """
+        Detect ML problem type by finding the most likely TARGET column.
+        Key insight: categorical/boolean columns are almost always FEATURES, not targets.
+        The target is typically:
+          - A numeric column with very few unique values (classification)
+          - OR a numeric column with many unique continuous values (regression)
+          - Usually the last column by convention
+        """
         n_rows = len(self.df)
+        all_candidates = []
 
         for col in self.df.columns:
             if self._is_identifier_column(col):
                 continue
-
             uc = self.df[col].nunique()
-            is_numeric = pd.api.types.is_numeric_dtype(self.df[col])
-            is_categorical = self.df[col].dtype in ['object', 'category']
-
-            # Boolean columns → skip (already encoded, not targets)
-            if self.df[col].dtype == bool:
+            if uc <= 1:
                 continue
 
-            # Categorical columns → always classification
-            if is_categorical:
-                if uc == 2:
-                    targets.append({'column': col, 'type': 'binary_classification', 'confidence': 'high', 'unique_values': int(uc)})
-                elif uc <= 20:
-                    targets.append({'column': col, 'type': 'multiclass_classification', 'confidence': 'high', 'unique_values': int(uc)})
-                continue
+            ratio    = uc / n_rows
+            is_last  = (col == self.df.columns[-1])
+            dtype    = str(self.df[col].dtype)
+            is_num   = pd.api.types.is_numeric_dtype(self.df[col])
+            is_cat   = self.df[col].dtype.name in ['object', 'category', 'bool']
 
-            if not is_numeric:
-                continue
-
-            is_int = str(self.df[col].dtype).startswith('int') or (
-                self.df[col].dropna() == self.df[col].dropna().astype(int)
-            ).all() if not self.df[col].isnull().all() else False
-
-            ratio = uc / n_rows
-
-            if uc == 2:
-                targets.append({'column': col, 'type': 'binary_classification', 'confidence': 'high', 'unique_values': int(uc)})
-            elif uc <= 20 and (is_int or ratio < 0.01):
-                targets.append({'column': col, 'type': 'multiclass_classification', 'confidence': 'high', 'unique_values': int(uc)})
+            # --- Determine this column's ML type ---
+            if is_cat:
+                if uc == 2:   ml_type = 'binary_classification'
+                elif uc <= 20: ml_type = 'multiclass_classification'
+                else:          ml_type = 'text'
+            elif uc == 2:
+                ml_type = 'binary_classification'
+            elif uc <= 10:
+                ml_type = 'multiclass_classification'
             elif ratio > 0.05:
-                targets.append({'column': col, 'type': 'regression', 'confidence': 'medium', 'unique_values': int(uc)})
+                ml_type = 'regression'
             else:
-                targets.append({'column': col, 'type': 'multiclass_classification', 'confidence': 'low', 'unique_values': int(uc)})
+                ml_type = 'multiclass_classification'
 
-        classification_types = [t for t in targets if 'classification' in t['type']]
-        regression_types     = [t for t in targets if t['type'] == 'regression']
+            # --- Target likelihood score ---
+            # Categorical columns are FEATURES in most datasets → penalize heavily
+            if is_cat:
+                score = 5   # categorical = almost never the target
+            elif uc == 2:
+                score = 100  # binary numeric = strong target signal
+            elif uc <= 5:
+                score = 80
+            elif uc <= 10:
+                score = 60
+            elif uc <= 20:
+                score = 40
+            elif ratio > 0.10:
+                score = 70   # high cardinality continuous = good regression target
+            else:
+                score = 25
 
-        if classification_types:
-            classification_types.sort(key=lambda x: ({'high':0,'medium':1,'low':2}[x['confidence']], x['unique_values']))
-            suggested = classification_types[0]['type']
-        elif regression_types:
-            suggested = 'regression'
-        else:
-            suggested = 'unknown'
+            # Last column is conventionally the target
+            if is_last and is_num:
+                score += 50
+
+            all_candidates.append({
+                'column':       col,
+                'type':         ml_type,
+                'confidence':   'high' if score >= 80 else 'medium' if score >= 40 else 'low',
+                'unique_values': int(uc),
+                '_score':       score,
+            })
+
+        if not all_candidates:
+            return {'potential_targets': [], 'suggested_type': 'unknown'}
+
+        best      = max(all_candidates, key=lambda x: x['_score'])
+        suggested = best['type']
+
+        targets = [{'column': t['column'], 'type': t['type'],
+                    'confidence': t['confidence'], 'unique_values': t['unique_values']}
+                   for t in all_candidates]
 
         return {'potential_targets': targets, 'suggested_type': suggested}
+
 
 
 # ─── Preprocessing Engine ───────────────────────────────────────────────────
@@ -280,6 +292,8 @@ class PreprocessingEngine:
             except Exception as e:
                 print(f"[Groq error — falling back to rule-based] {e}")
         return self._rule_based_recommendations(profile)
+
+    # ── Groq path ───────────────────────────────────────────────────────────
 
     def _groq_recommendations(self, profile: Dict) -> Dict:
         cols = '\n'.join(
@@ -320,6 +334,8 @@ Return ONLY valid JSON (no markdown, no backticks):
             return rec
         except Exception:
             return self._rule_based_recommendations(profile)
+
+    # ── Rule-based path ─────────────────────────────────────────────────────
 
     def _rule_based_recommendations(self, profile: Dict) -> Dict:
         rec = {
@@ -362,7 +378,7 @@ Return ONLY valid JSON (no markdown, no backticks):
             steps.append(f"Impute missing values in {len(rec['missing_value_strategy'])} columns")
         if rec['encoding_recommendations']:
             steps.append(f"Encode {len(rec['encoding_recommendations'])} categorical columns")
-        steps += ["Convert bool columns to int (0/1)", "Cap outliers with IQR method (continuous cols only)", "Scale continuous features (skip already-scaled & binary cols)", "Split 70/15/15 train/val/test"]
+        steps += ["Cap outliers with IQR method", "Scale features with StandardScaler", "Split 70/15/15 train/val/test"]
         rec['preprocessing_steps'] = steps
 
         qs, mp, dc = profile['quality_score']['overall'], profile['missing_values']['missing_percentage'], profile['basic_info']['duplicate_rows']
@@ -389,22 +405,26 @@ class DataPreprocessor:
         self.log = []
 
     def apply_all_preprocessing(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str]]:
-        self._convert_bools()          # FIX 1: bool → int FIRST
+        # Step 0: Convert ALL boolean columns to 0/1 integers immediately
+        bool_cols = [c for c in self.df.columns if self.df[c].dtype == bool
+                     or str(self.df[c].dtype) == 'bool'
+                     or (self.df[c].dropna().isin([True, False]).all() and self.df[c].dtype == object)]
+        for col in bool_cols:
+            self.df[col] = self.df[col].map({True: 1, False: 0, 'True': 1, 'False': 0,
+                                              'true': 1, 'false': 0, 'TRUE': 1, 'FALSE': 0})
+            self.df[col] = self.df[col].astype(float)
+        if bool_cols:
+            self.log.append(f"Converted {len(bool_cols)} boolean column(s) to 0/1")
+
         self._drop_columns()
         self._remove_duplicates()
         self._handle_missing_values()
         self._encode_categoricals()
         self._handle_outliers()
-        self._scale_features()         # FIX 2 & 3: smart scaling
+        # Save pre-scaled snapshot for preview verification
+        self.df_before_scaling = self.df.copy()
+        self._scale_features()
         return (*self._split_data(), self.log)
-
-    # ── FIX 1: Convert bool columns to int ──────────────────────────────────
-    def _convert_bools(self):
-        bool_cols = self.df.select_dtypes(include='bool').columns.tolist()
-        if bool_cols:
-            self.df[bool_cols] = self.df[bool_cols].astype(int)
-            self.log.append(f"Converted {len(bool_cols)} bool column(s) to int (0/1): "
-                            f"{', '.join(bool_cols[:3])}{'...' if len(bool_cols) > 3 else ''}")
 
     def _drop_columns(self):
         cols = [i['column'] for i in self.rec.get('columns_to_drop', [])]
@@ -414,7 +434,7 @@ class DataPreprocessor:
 
     def _remove_duplicates(self):
         before = len(self.df)
-        self.df = self.df.drop_duplicates()
+        self.df = self.df.drop_duplicates().reset_index(drop=True)
         removed = before - len(self.df)
         if removed:
             self.log.append(f"Removed {removed} duplicate rows ({before} → {len(self.df)})")
@@ -424,8 +444,14 @@ class DataPreprocessor:
         strategy = self.rec.get('missing_value_strategy', {})
 
         for col in self.df.columns:
-            if self.df[col].isnull().sum() == 0:
+            missing_count = self.df[col].isnull().sum()
+            if missing_count == 0:
                 continue
+
+            # Skip boolean columns
+            if self.df[col].dtype == bool:
+                continue
+
             method = strategy.get(col)
             if not method:
                 if pd.api.types.is_numeric_dtype(self.df[col]):
@@ -433,19 +459,28 @@ class DataPreprocessor:
                 else:
                     method = 'mode'
 
-            if   method == 'mean':
-                self.df[col].fillna(self.df[col].mean(), inplace=True); filled += 1
+            if method == 'mean':
+                fill_val = self.df[col].mean()
+                if pd.isna(fill_val): fill_val = 0
+                self.df[col] = self.df[col].fillna(round(fill_val, 6))
+                filled += 1
             elif method == 'median':
-                self.df[col].fillna(self.df[col].median(), inplace=True); filled += 1
+                fill_val = self.df[col].median()
+                if pd.isna(fill_val): fill_val = 0
+                self.df[col] = self.df[col].fillna(round(fill_val, 6))
+                filled += 1
             elif method == 'mode':
                 m = self.df[col].mode()
-                if len(m): self.df[col].fillna(m[0], inplace=True); filled += 1
+                if len(m):
+                    self.df[col] = self.df[col].fillna(m[0])
+                    filled += 1
             elif method == 'drop_rows':
                 before = len(self.df)
-                self.df.dropna(subset=[col], inplace=True)
+                self.df = self.df.dropna(subset=[col])
                 self.log.append(f"Dropped {before - len(self.df)} rows with missing '{col}'")
 
-        if filled: self.log.append(f"Imputed missing values in {filled} column(s)")
+        if filled:
+            self.log.append(f"Imputed missing values in {filled} column(s)")
 
     def _encode_categoricals(self):
         encoded = 0
@@ -459,46 +494,47 @@ class DataPreprocessor:
 
     def _handle_outliers(self):
         if self.rec.get('outlier_handling') != 'iqr': return
-        # FIX 2: Only cap outliers on continuous (non-binary) numeric columns
-        num_cols = self.df.select_dtypes(include=[np.number]).columns
-        continuous_cols = [c for c in num_cols if not _is_binary_column(self.df[c])]
-        for col in continuous_cols:
-            Q1, Q3 = self.df[col].quantile(0.25), self.df[col].quantile(0.75)
-            self.df[col] = self.df[col].clip(Q1 - 1.5*(Q3-Q1), Q3 + 1.5*(Q3-Q1))
-        if continuous_cols:
-            self.log.append(f"IQR outlier capping on {len(continuous_cols)} continuous column(s)")
+        try:
+            all_num = list(self.df.select_dtypes(include=[np.number]).columns)
+            num_cols = [col for col in all_num
+                        if not (self.df[col].dropna().isin([0, 1]).all() and self.df[col].nunique() <= 2)]
+            capped = 0
+            for col in num_cols:
+                try:
+                    Q1  = self.df[col].quantile(0.25)
+                    Q3  = self.df[col].quantile(0.75)
+                    IQR = Q3 - Q1
+                    if IQR == 0: continue   # skip constant columns
+                    self.df[col] = self.df[col].clip(Q1 - 1.5*IQR, Q3 + 1.5*IQR)
+                    capped += 1
+                except Exception:
+                    continue
+            if capped:
+                self.log.append(f"IQR outlier capping on {capped} continuous column(s)")
+        except Exception as e:
+            self.log.append(f"Outlier handling skipped: {e}")
 
     def _scale_features(self):
-        # FIX 3: Skip binary columns AND already-scaled columns
         scaling  = self.rec.get('scaling_recommendation', 'standard')
-        num_cols = self.df.select_dtypes(include=[np.number]).columns
-
-        cols_to_scale = [
-            c for c in num_cols
-            if not _is_binary_column(self.df[c])       # skip 0/1 encoded cols
-            and not _is_already_scaled(self.df[c])     # skip already standardized cols
-        ]
-
-        if not cols_to_scale or scaling == 'none':
-            already_scaled = [c for c in num_cols if _is_already_scaled(self.df[c])]
-            binary_cols    = [c for c in num_cols if _is_binary_column(self.df[c])]
-            if already_scaled:
-                self.log.append(f"Skipped scaling: {len(already_scaled)} column(s) already standardized")
-            if binary_cols:
-                self.log.append(f"Skipped scaling: {len(binary_cols)} binary column(s) preserved as 0/1")
-            return
-
-        scaler = {'standard': StandardScaler(), 'minmax': MinMaxScaler(), 'robust': RobustScaler()}.get(scaling, StandardScaler())
-        self.df[cols_to_scale] = scaler.fit_transform(self.df[cols_to_scale])
-        self.log.append(f"{scaling.title()} scaling applied to {len(cols_to_scale)} column(s)")
-
-        # Log what was skipped
-        skipped_binary  = [c for c in num_cols if _is_binary_column(self.df[c])]
-        skipped_scaled  = [c for c in num_cols if _is_already_scaled(self.df[c]) and c not in cols_to_scale]
-        if skipped_binary:
-            self.log.append(f"Preserved {len(skipped_binary)} binary column(s) as 0/1 (not scaled)")
-        if skipped_scaled:
-            self.log.append(f"Skipped {len(skipped_scaled)} already-standardized column(s)")
+        try:
+            # Convert any remaining bool columns to int before scaling
+            for col in self.df.columns:
+                if self.df[col].dtype == bool:
+                    self.df[col] = self.df[col].astype(int)
+                elif self.df[col].dtype == object:
+                    sample = self.df[col].dropna().astype(str).str.lower().unique()
+                    if set(sample).issubset({'true', 'false', '1', '0'}):
+                        self.df[col] = self.df[col].astype(str).str.lower().map(
+                            {'true': 1, 'false': 0, '1': 1, '0': 0}
+                        )
+            num_cols = list(self.df.select_dtypes(include=[np.number]).columns)
+            if not num_cols or scaling == 'none': return
+            scaler = {'standard': StandardScaler(), 'minmax': MinMaxScaler(), 'robust': RobustScaler()}.get(scaling, StandardScaler())
+            scaled = scaler.fit_transform(self.df[num_cols])
+            self.df[num_cols] = np.round(scaled, 6)
+            self.log.append(f"{scaling.title()} scaling on {len(num_cols)} column(s)")
+        except Exception as e:
+            self.log.append(f"Scaling skipped: {e}")
 
     def _split_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         split = self.rec.get('data_split', {'train': 0.7, 'validation': 0.15, 'test': 0.15})
@@ -506,6 +542,20 @@ class DataPreprocessor:
         train, val = train_test_split(tv, test_size=split['validation']/(split['train']+split['validation']), random_state=42)
         self.log.append(f"Split — Train: {len(train)}, Val: {len(val)}, Test: {len(test)} rows")
         return train, val, test
+
+    def _clean_for_export(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Final cleanup before saving: convert all bool/object bool to 0/1."""
+        df = df.copy()
+        for col in df.columns:
+            # Convert boolean dtype
+            if df[col].dtype == bool:
+                df[col] = df[col].astype(int)
+            # Convert string 'True'/'False' or 'true'/'false'
+            elif df[col].dtype == object:
+                sample = df[col].dropna().astype(str).str.lower().unique()
+                if set(sample).issubset({'true', 'false', '1', '0'}):
+                    df[col] = df[col].astype(str).str.lower().map({'true': 1, 'false': 0, '1': 1, '0': 0})
+        return df
 
 
 # ─── Flask Routes ────────────────────────────────────────────────────────────
@@ -565,17 +615,63 @@ def preprocess_dataset():
         rec     = data.get('recommendations')
         fpath   = os.path.join(UPLOAD_FOLDER, fname)
         df      = pd.read_csv(fpath) if fname.lower().endswith('.csv') else pd.read_excel(fpath)
-        train, val, test, log = DataPreprocessor(df, rec).apply_all_preprocessing()
+        dp = DataPreprocessor(df, rec)
+        train, val, test, log = dp.apply_all_preprocessing()
         base = fname.rsplit('.', 1)[0]
-        train.to_csv(os.path.join(PROCESSED_FOLDER, f"{base}_train.csv"), index=False)
-        val.to_csv(  os.path.join(PROCESSED_FOLDER, f"{base}_val.csv"),   index=False)
-        test.to_csv( os.path.join(PROCESSED_FOLDER, f"{base}_test.csv"),  index=False)
+
+        # Save fully processed (scaled + encoded) splits as main download
+        dp._clean_for_export(train).to_csv(os.path.join(PROCESSED_FOLDER, f"{base}_train.csv"), index=False)
+        dp._clean_for_export(val).to_csv(  os.path.join(PROCESSED_FOLDER, f"{base}_val.csv"),   index=False)
+        dp._clean_for_export(test).to_csv( os.path.join(PROCESSED_FOLDER, f"{base}_test.csv"),  index=False)
+
+        # Save pre-scaled snapshot for preview only
+        if hasattr(dp, 'df_before_scaling') and dp.df_before_scaling is not None:
+            pre = dp._clean_for_export(dp.df_before_scaling)
+            split_cfg = dp.rec.get('data_split', {'train':0.7,'validation':0.15,'test':0.15})
+            tv_pre, test_pre   = train_test_split(pre, test_size=split_cfg['test'], random_state=42)
+            val_ratio          = split_cfg['validation']/(split_cfg['train']+split_cfg['validation'])
+            train_pre, val_pre = train_test_split(tv_pre, test_size=val_ratio, random_state=42)
+            train_pre.to_csv(os.path.join(PROCESSED_FOLDER, f"{base}_preview.csv"), index=False)
         return jsonify({'success': True,
                         'train_file': f"{base}_train.csv",
                         'val_file':   f"{base}_val.csv",
                         'test_file':  f"{base}_test.csv",
                         'shapes': {'train': list(train.shape), 'val': list(val.shape), 'test': list(test.shape)},
                         'log': log})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/preview/<filename>')
+def preview_file(filename):
+    """Return first 20 rows of a processed file for UI preview."""
+    try:
+        # Use pre-scaled preview file per split
+        preview_filename = filename.replace('_train.csv','_train_preview.csv').replace('_val.csv','_val_preview.csv').replace('_test.csv','_test_preview.csv')
+        preview_path = os.path.join(PROCESSED_FOLDER, preview_filename)
+        filepath = preview_path if os.path.exists(preview_path) else os.path.join(PROCESSED_FOLDER, filename)
+        df = pd.read_csv(filepath)
+
+        # Convert any remaining bool-string columns to 0/1
+        for col in df.columns:
+            if df[col].dtype == object:
+                sample = df[col].dropna().astype(str).str.lower().unique()
+                if set(sample).issubset({'true', 'false', '1', '0'}):
+                    df[col] = df[col].astype(str).str.lower().map(
+                        {'true': 1, 'false': 0, '1': 1, '0': 0}
+                    )
+            elif df[col].dtype == bool:
+                df[col] = df[col].astype(int)
+
+        preview = df.head(20).where(pd.notnull(df.head(20)), None)
+        return jsonify({
+            'success': True,
+            'columns': list(df.columns),
+            'rows':    preview.values.tolist(),
+            'shape':   list(df.shape),
+            'dtypes':  {col: str(df[col].dtype) for col in df.columns},
+            'missing': int(df.isnull().sum().sum()),
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -598,13 +694,13 @@ def test_connection():
             model=GROQ_MODEL,
             messages=[{"role": "user", "content": "Reply with only the word: OK"}],
             max_tokens=5, temperature=0)
-        labels = {'mixtral-8x7b-32768': 'Mixtral 8x7B', 'llama3-70b-8192': 'LLaMA 3 70B', 'llama-3.3-70b-versatile': 'LLaMA 3.3 70B', 'gemma2-9b-it': 'Gemma 2 9B'}
+        labels = {'mixtral-8x7b-32768': 'Mixtral 8x7B', 'llama3-70b-8192': 'LLaMA 3 70B', 'gemma2-9b-it': 'Gemma 2 9B'}
         return jsonify({'success': True, 'provider': 'groq', 'model': GROQ_MODEL,
                         'model_name': labels.get(GROQ_MODEL, GROQ_MODEL),
                         'reply': resp.choices[0].message.content.strip()})
     except Exception as e:
         err = str(e)
-        print(f"[test-connection error] {err}")
+        print(f"[test-connection error] {err}")   # ← shows in terminal
         if '401' in err or 'invalid' in err.lower(): err = 'Invalid API key — check your gsk_... key'
         elif '429' in err or 'rate' in err.lower():  err = 'Rate limit — wait and retry'
         elif '403' in err:                            err = 'Access denied'
