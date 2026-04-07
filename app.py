@@ -140,9 +140,20 @@ class DatasetProfiler:
         return result
 
     def _is_identifier_column(self, col: str) -> bool:
+        # Only flag as identifier if ALL values are unique (true ID column)
         if self.df[col].nunique() == len(self.df):
             return True
-        return any(p in col.lower() for p in ['id', 'index', 'key', 'code', 'number'])
+        # Only flag if column NAME clearly indicates an ID
+        # Be strict — do not flag demographic/feature columns
+        col_lower = col.lower().strip()
+        id_patterns = ['_id', 'id_', ' id', 'id ', '_index', 'index_', '_key', 'key_']
+        exact_ids   = ['id', 'index', 'key', 'rowid', 'row_id', 'serial', 'uuid']
+        if col_lower in exact_ids:
+            return True
+        if any(col_lower.endswith(p.strip()) or col_lower.startswith(p.strip()) 
+               for p in id_patterns):
+            return True
+        return False
 
     def _analyze_missing_values(self) -> Dict:
         info = {
@@ -303,6 +314,14 @@ class PreprocessingEngine:
             + (" [ID-LIKE]"  if c['is_identifier'] else "") + ")"
             for c in profile['column_analysis'][:20]
         )
+        # Identify protected columns
+        protected = [col['name'] for col in profile['column_analysis']
+                     if any(kw in col['name'].lower() for kw in
+                            ['gender','sex','age','race','ethnicity','education',
+                             'city','region','country','state','employment','marital',
+                             'diagnosis','target','label','class','result','outcome'])]
+        protect_note = f"NEVER drop: {', '.join(protected)}" if protected else "no protected columns"
+
         prompt = f"""You are a data preprocessing expert. Return preprocessing recommendations as JSON only.
 
 DATASET
@@ -314,8 +333,13 @@ DATASET
 COLUMNS
 {cols}
 
+STRICT RULES:
+1. Only drop: true row IDs (every value unique), constant columns (1 unique value), or >70% missing
+2. {protect_note}
+3. NEVER drop demographic or feature columns (gender, age, city, education, employment etc.)
+
 Return ONLY valid JSON (no markdown, no backticks):
-{{"source":"ai_groq","overall_assessment":"<2-3 sentences>","columns_to_drop":[{{"column":"<name>","reason":"<why>"}}],"missing_value_strategy":{{"<col>":"mean|median|mode|drop_rows"}},"encoding_recommendations":{{"<col>":"one_hot_encoding|label_encoding|target_encoding"}},"scaling_recommendation":"standard|minmax|robust|none","outlier_handling":"iqr|zscore|none","data_split":{{"train":0.7,"validation":0.15,"test":0.15}},"preprocessing_steps":["<step>"],"suggestions":[{{"text":"<insight>","severity":"high|medium|low","impact":"<effect>"}}]}}"""
+{{"source":"ai_groq","overall_assessment":"<2-3 sentences>","columns_to_drop":[{{"column":"<n>","reason":"<why>"}}],"missing_value_strategy":{{"<col>":"mean|median|mode|drop_rows"}},"encoding_recommendations":{{"<col>":"one_hot_encoding|label_encoding|target_encoding"}},"scaling_recommendation":"standard|minmax|robust|none","outlier_handling":"iqr|zscore|none","data_split":{{"train":0.7,"validation":0.15,"test":0.15}},"preprocessing_steps":["<step>"],"suggestions":[{{"text":"<insight>","severity":"high|medium|low","impact":"<effect>"}}]}}"""
 
         resp    = self.client.chat.completions.create(
             model=GROQ_MODEL, messages=[{"role": "user", "content": prompt}],
@@ -331,6 +355,15 @@ Return ONLY valid JSON (no markdown, no backticks):
             rb = self._rule_based_recommendations(profile)
             for key in rb:
                 rec.setdefault(key, rb[key])
+
+            # Safety: remove protected columns from drop list
+            protected_kw = ['gender','sex','age','race','ethnicity','education',
+                            'city','region','country','state','employment','marital',
+                            'diagnosis','target','label','class','result','outcome']
+            rec['columns_to_drop'] = [
+                d for d in rec.get('columns_to_drop', [])
+                if not any(kw in d['column'].lower() for kw in protected_kw)
+            ]
             return rec
         except Exception:
             return self._rule_based_recommendations(profile)
@@ -346,12 +379,19 @@ Return ONLY valid JSON (no markdown, no backticks):
             'preprocessing_steps': [], 'suggestions': [], 'overall_assessment': '',
         }
 
+        # Important feature columns that should NEVER be dropped
+        protected_keywords = ['gender', 'sex', 'age', 'race', 'ethnicity', 'education',
+                              'city', 'region', 'country', 'state', 'employment', 'marital']
+
         for ci in profile['column_analysis']:
+            col_lower = ci['name'].lower()
+            is_protected = any(kw in col_lower for kw in protected_keywords)
+
             if ci['is_constant']:
                 rec['columns_to_drop'].append({'column': ci['name'], 'reason': 'Constant — carries no information'})
-            elif ci['is_identifier']:
+            elif ci['is_identifier'] and not is_protected:
                 rec['columns_to_drop'].append({'column': ci['name'], 'reason': 'Identifier — not a feature'})
-            elif ci['missing_percentage'] > 70:
+            elif ci['missing_percentage'] > 70 and not is_protected:
                 rec['columns_to_drop'].append({'column': ci['name'], 'reason': f'{ci["missing_percentage"]:.1f}% missing — too sparse'})
 
         drop_set = {d['column'] for d in rec['columns_to_drop']}
