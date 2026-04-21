@@ -102,9 +102,50 @@ class DatasetProfiler:
             'statistical_summary': self._get_statistical_summary(),
             'potential_issues':    self._identify_issues(),
             'ml_problem_type':     self._detect_ml_problem_type(),
+            'correlation_analysis': self._analyze_correlation(),
+            'feature_importance':  self._basic_feature_importance(),
         }
         profile['quality_score'] = DataQualityScorer.calculate_quality_score(profile)
         return profile
+
+    def _analyze_correlation(self) -> Dict:
+        """Find highly correlated feature pairs (>0.9)."""
+        try:
+            num_df = self.df.select_dtypes(include=[np.number])
+            if num_df.shape[1] < 2:
+                return {'high_correlation_pairs': [], 'drop_suggestions': []}
+            corr = num_df.corr().abs()
+            pairs = []
+            drop_suggestions = []
+            seen = set()
+            for i in range(len(corr.columns)):
+                for j in range(i+1, len(corr.columns)):
+                    val = corr.iloc[i, j]
+                    if val > 0.9:
+                        c1, c2 = corr.columns[i], corr.columns[j]
+                        pairs.append({'col1': c1, 'col2': c2, 'correlation': round(float(val), 4)})
+                        if c2 not in seen:
+                            drop_suggestions.append({'column': c2, 'reason': f'Highly correlated with {c1} ({val:.2f})'})
+                            seen.add(c2)
+            return {'high_correlation_pairs': pairs, 'drop_suggestions': drop_suggestions}
+        except Exception:
+            return {'high_correlation_pairs': [], 'drop_suggestions': []}
+
+    def _basic_feature_importance(self) -> Dict:
+        """Basic feature importance using variance and correlation with last column."""
+        try:
+            num_df = self.df.select_dtypes(include=[np.number]).dropna()
+            if num_df.shape[1] < 2:
+                return {'important': [], 'low_importance': []}
+            target = num_df.columns[-1]
+            correlations = num_df.corr()[target].abs().drop(target).sort_values(ascending=False)
+            important     = [{'column': col, 'score': round(float(val), 4)}
+                             for col, val in correlations.items() if val >= 0.1]
+            low_importance= [{'column': col, 'score': round(float(val), 4)}
+                             for col, val in correlations.items() if val < 0.1]
+            return {'target_used': target, 'important': important, 'low_importance': low_importance}
+        except Exception:
+            return {'important': [], 'low_importance': []}
 
     def _get_basic_info(self) -> Dict:
         return {
@@ -118,17 +159,57 @@ class DatasetProfiler:
     def _analyze_columns(self) -> List[Dict]:
         result = []
         for col in self.df.columns:
+            missing_pct = float(self.df[col].isnull().sum() / len(self.df) * 100)
+            uc          = int(self.df[col].nunique())
+            is_num      = pd.api.types.is_numeric_dtype(self.df[col])
+
+            # Column category
+            if self.df[col].dtype == bool or uc == 2:
+                col_category = 'Binary'
+            elif self.df[col].dtype.name in ['object','category']:
+                col_category = 'Text' if uc / max(len(self.df),1) > 0.5 else 'Categorical'
+            elif is_num:
+                col_category = 'Numeric'
+            else:
+                col_category = 'Text'
+
+            # Outlier percentage (IQR)
+            outlier_pct = 0.0
+            skewness    = 0.0
+            if is_num and not self.df[col].isnull().all():
+                try:
+                    Q1, Q3 = self.df[col].quantile(0.25), self.df[col].quantile(0.75)
+                    IQR    = Q3 - Q1
+                    if IQR > 0:
+                        outliers    = ((self.df[col] < Q1 - 1.5*IQR) | (self.df[col] > Q3 + 1.5*IQR)).sum()
+                        outlier_pct = round(float(outliers / len(self.df) * 100), 2)
+                    skewness = round(float(self.df[col].skew()), 4)
+                except Exception:
+                    pass
+
+            # Risk level
+            if missing_pct > 30 or outlier_pct > 20:
+                risk = 'High'
+            elif missing_pct > 10 or outlier_pct > 10:
+                risk = 'Medium'
+            else:
+                risk = 'Low'
+
             info = {
                 'name':               col,
                 'dtype':              str(self.df[col].dtype),
-                'unique_values':      int(self.df[col].nunique()),
+                'column_category':    col_category,
+                'unique_values':      uc,
                 'missing_count':      int(self.df[col].isnull().sum()),
-                'missing_percentage': float(self.df[col].isnull().sum() / len(self.df) * 100),
-                'is_constant':        self.df[col].nunique() == 1,
+                'missing_percentage': missing_pct,
+                'outlier_percentage': outlier_pct,
+                'skewness':           skewness,
+                'risk_level':         risk,
+                'is_constant':        uc == 1,
                 'is_identifier':      self._is_identifier_column(col),
                 'sample_values':      [str(v) for v in self.df[col].dropna().head(5).tolist()],
             }
-            if pd.api.types.is_numeric_dtype(self.df[col]):
+            if is_num:
                 info['numeric_stats'] = {
                     'mean':  float(self.df[col].mean())  if not self.df[col].isnull().all() else None,
                     'std':   float(self.df[col].std())   if not self.df[col].isnull().all() else None,
@@ -314,32 +395,67 @@ class PreprocessingEngine:
             + (" [ID-LIKE]"  if c['is_identifier'] else "") + ")"
             for c in profile['column_analysis'][:20]
         )
-        # Identify protected columns
+        # Build protected columns list
         protected = [col['name'] for col in profile['column_analysis']
                      if any(kw in col['name'].lower() for kw in
                             ['gender','sex','age','race','ethnicity','education',
                              'city','region','country','state','employment','marital',
                              'diagnosis','target','label','class','result','outcome'])]
-        protect_note = f"NEVER drop: {', '.join(protected)}" if protected else "no protected columns"
+        protect_str = ', '.join(protected) if protected else 'none detected'
 
-        prompt = f"""You are a data preprocessing expert. Return preprocessing recommendations as JSON only.
+        # Summarize column info for prompt
+        col_lines = []
+        for col in profile['column_analysis'][:25]:
+            col_lines.append(
+                f"  - {col['name']} | {col.get('column_category','?')} | "
+                f"missing={col['missing_percentage']:.1f}% | "
+                f"outliers={col.get('outlier_percentage',0):.1f}% | "
+                f"unique={col['unique_values']} | "
+                f"skew={col.get('skewness',0):.2f} | "
+                f"risk={col.get('risk_level','?')}"
+                + (" [ID]" if col['is_identifier'] else "")
+                + (" [CONST]" if col['is_constant'] else "")
+            )
+        col_summary = chr(10).join(col_lines)
 
-DATASET
+        corr_pairs = profile.get('correlation_analysis', {}).get('high_correlation_pairs', [])
+        corr_str   = ', '.join([f"{p['col1']}↔{p['col2']}({p['correlation']})" for p in corr_pairs[:5]]) or 'none'
+
+        prompt = f"""You are an expert data preprocessing system.
+Analyze the given dataset and generate a complete preprocessing report with explainable insights.
+
+DATASET SUMMARY
   Rows: {profile['basic_info']['rows']} | Columns: {profile['basic_info']['columns']}
-  Duplicates: {profile['basic_info']['duplicate_rows']} | Missing: {profile['missing_values']['missing_percentage']:.1f}%
-  Quality: {profile['quality_score']['overall']}/100 ({profile['quality_score']['rating']})
-  ML task: {profile['ml_problem_type']['suggested_type']}
+  Missing: {profile['missing_values']['missing_percentage']:.1f}% | Duplicates: {profile['basic_info']['duplicate_rows']}
+  Quality Score: {profile['quality_score']['overall']}/100 ({profile['quality_score']['rating']})
+  ML Task: {profile['ml_problem_type']['suggested_type']}
+  High Correlations: {corr_str}
 
-COLUMNS
-{cols}
+COLUMN DETAILS
+{col_summary}
 
 STRICT RULES:
-1. Only drop: true row IDs (every value unique), constant columns (1 unique value), or >70% missing
-2. {protect_note}
-3. NEVER drop demographic or feature columns (gender, age, city, education, employment etc.)
+- NEVER drop: {protect_str}
+- Only drop: true row IDs (all values unique), constant columns, or >70% missing
+- Do NOT drop gender, age, city, education, employment or any demographic feature
+- Be beginner-friendly and explainable
 
-Return ONLY valid JSON (no markdown, no backticks):
-{{"source":"ai_groq","overall_assessment":"<2-3 sentences>","columns_to_drop":[{{"column":"<n>","reason":"<why>"}}],"missing_value_strategy":{{"<col>":"mean|median|mode|drop_rows"}},"encoding_recommendations":{{"<col>":"one_hot_encoding|label_encoding|target_encoding"}},"scaling_recommendation":"standard|minmax|robust|none","outlier_handling":"iqr|zscore|none","data_split":{{"train":0.7,"validation":0.15,"test":0.15}},"preprocessing_steps":["<step>"],"suggestions":[{{"text":"<insight>","severity":"high|medium|low","impact":"<effect>"}}]}}"""
+Return ONLY valid JSON (no markdown, no backticks, no extra text):
+{{
+  "source": "ai_groq",
+  "overall_assessment": "<2-3 sentences explaining dataset quality>",
+  "columns_to_drop": [{{"column": "<name>", "reason": "<clear reason>"}}],
+  "missing_value_strategy": {{"<col>": "mean|median|mode|drop_rows"}},
+  "encoding_recommendations": {{"<col>": "one_hot_encoding|label_encoding|target_encoding"}},
+  "scaling_recommendation": "standard|minmax|robust|none",
+  "outlier_handling": "iqr|zscore|none",
+  "data_split": {{"train": 0.7, "validation": 0.15, "test": 0.15}},
+  "preprocessing_steps": ["<step1>", "<step2>"],
+  "suggestions": [{{"text": "<insight>", "severity": "high|medium|low", "impact": "<effect on model>"}}],
+  "feature_importance_notes": [{{"column": "<name>", "importance": "high|medium|low", "reason": "<why>"}}],
+  "data_issues": [{{"issue": "<name>", "severity": "high|medium|low", "affected_columns": ["<col>"], "impact": "<ml impact>"}}],
+  "before_after_summary": [{{"metric": "<name>", "before": "<value>", "after": "<expected value>"}}]
+}}"""
 
         resp    = self.client.chat.completions.create(
             model=GROQ_MODEL, messages=[{"role": "user", "content": prompt}],

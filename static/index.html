@@ -718,6 +718,28 @@ header {
 .sr-stat-div {
   width: 1px; height: 36px; background: var(--cream-border);
 }
+/* ── MANUAL COLUMN CHIPS ── */
+.col-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 20px;
+  border: 1.5px solid var(--cream-border);
+  background: var(--cream-dark); cursor: pointer;
+  transition: all 0.2s; user-select: none;
+}
+.col-chip:hover { border-color: var(--orange); background: var(--orange-pale); }
+.col-chip.selected {
+  border-color: var(--red); background: var(--red-pale);
+}
+.col-chip.selected .chip-x { display: inline; color: var(--red); }
+.chip-x { display: none; font-size: 10px; }
+.chip-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.chip-meta { font-size: 10px; color: var(--text-light); }
+.chip-risk {
+  font-size: 9px; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.col-chip.selected .chip-name { color: var(--red); text-decoration: line-through; }
+
 .sr-icon.sr-num {
   font-family: 'Playfair Display', serif;
   font-size: 32px; font-weight: 900; color: var(--orange);
@@ -1280,10 +1302,13 @@ header {
               <thead>
                 <tr>
                   <th>Column Name</th>
+                  <th>Category</th>
                   <th>Type</th>
                   <th>Unique</th>
-                  <th>Missing</th>
                   <th>Missing %</th>
+                  <th>Outlier %</th>
+                  <th>Skewness</th>
+                  <th>Risk</th>
                   <th>Flags</th>
                   <th>Sample Values</th>
                 </tr>
@@ -1298,6 +1323,29 @@ header {
           <div class="card-title ask-title"><i class="fa fa-chart-bar"></i> Missing Values by Column</div>
           <div class="missing-bars" id="missing-bars"></div>
         </div>
+
+        <!-- Correlation Analysis -->
+        <div class="card" id="correlation-card" style="display:none">
+          <div class="card-title red-title"><i class="fa fa-link"></i> High Correlation Pairs (&gt;0.9)</div>
+          <div id="correlation-list"></div>
+        </div>
+
+        <!-- Feature Importance -->
+        <div class="card" id="feature-importance-card" style="display:none">
+          <div class="card-title green-title"><i class="fa fa-ranking-star"></i> Feature Importance</div>
+          <div class="two-col-grid" style="gap:12px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">High Importance</div>
+              <div id="fi-important"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Low Importance</div>
+              <div id="fi-low"></div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:8px">Based on correlation with target column: <strong id="fi-target">—</strong></div>
+        </div>
+
       </section>
 
       <!-- ═══ STEP 3: RECOMMENDATIONS ═══ -->
@@ -1334,6 +1382,20 @@ header {
             <div id="suggestions-list"></div>
           </div>
 
+          <!-- Manual Column Removal -->
+          <div class="card" id="manual-col-card">
+            <div class="card-title red-title" style="justify-content:space-between">
+              <span><i class="fa fa-trash-can"></i> Manual Column Removal</span>
+              <span style="font-size:10px;font-weight:400;color:var(--text-light);text-transform:none;letter-spacing:0">Select columns to remove before processing</span>
+            </div>
+            <div id="manual-col-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span id="manual-col-count" style="font-size:12px;color:var(--text-light)">No columns selected</span>
+              <button onclick="App.selectAllColumns()" style="font-size:11px;padding:4px 10px;border:1px solid var(--cream-border);border-radius:4px;background:var(--cream);cursor:pointer;color:var(--text-mid)">Select All</button>
+              <button onclick="App.clearColumnSelection()" style="font-size:11px;padding:4px 10px;border:1px solid var(--cream-border);border-radius:4px;background:var(--cream);cursor:pointer;color:var(--text-mid)">Clear</button>
+            </div>
+          </div>
+
           <!-- Steps -->
           <div class="card">
             <div class="card-title orange-title"><i class="fa fa-list-ol"></i> Preprocessing Pipeline Steps</div>
@@ -1354,6 +1416,24 @@ header {
               <div class="card-title black-title"><i class="fa fa-tags"></i> Encoding Plan</div>
               <div id="encoding-list"></div>
             </div>
+          </div>
+
+          <!-- Data Issues -->
+          <div class="card" id="data-issues-card" style="display:none">
+            <div class="card-title red-title"><i class="fa fa-bug"></i> Data Issues Detected</div>
+            <div id="data-issues-list"></div>
+          </div>
+
+          <!-- Feature Importance Notes -->
+          <div class="card" id="fi-notes-card" style="display:none">
+            <div class="card-title ask-title"><i class="fa fa-star"></i> Feature Importance Notes</div>
+            <div id="fi-notes-list"></div>
+          </div>
+
+          <!-- Before vs After -->
+          <div class="card" id="before-after-card" style="display:none">
+            <div class="card-title green-title"><i class="fa fa-arrow-right-arrow-left"></i> Before vs After Preview</div>
+            <div id="before-after-list"></div>
           </div>
 
           <!-- Scaling / Outlier / Split -->
@@ -1798,10 +1878,20 @@ const App = (() => {
     showLoader('Preprocessing dataset...', 'Applying transformations, splitting data...');
 
     try {
+      // Merge manual column removals into recommendations
+      const mergedRec = JSON.parse(JSON.stringify(state.recommendations));
+      const alreadyDrop = new Set((mergedRec.columns_to_drop || []).map(d => d.column));
+      _manualDropCols.forEach(col => {
+        if (!alreadyDrop.has(col)) {
+          mergedRec.columns_to_drop = mergedRec.columns_to_drop || [];
+          mergedRec.columns_to_drop.push({ column: col, reason: 'Manually removed by user' });
+        }
+      });
+
       const res = await fetch(`${API_BASE}/api/preprocess`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: state.filename, recommendations: state.recommendations })
+        body: JSON.stringify({ filename: state.filename, recommendations: mergedRec })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Preprocessing failed');
@@ -2150,34 +2240,77 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
       ).join('');
     }
 
-    // Column table
+    // Column table — enriched with category, outlier%, skewness, risk
     const tbody = document.getElementById('col-tbody');
+    const riskColor = { Low:'#1a7a3c', Medium:'#b07a10', High:'#c0160f' };
+    const catColor  = { Numeric:'#1a4a8a', Categorical:'#e8620a', Binary:'#1a7a3c', Text:'#b07a10' };
     tbody.innerHTML = profile.column_analysis.map(c => {
-      const mpct = c.missing_percentage;
+      const mpct     = c.missing_percentage;
+      const opct     = c.outlier_percentage || 0;
+      const skew     = c.skewness || 0;
+      const risk     = c.risk_level || 'Low';
+      const cat      = c.column_category || 'Numeric';
       const barClass = mpct>50?'miss-high':mpct>20?'miss-medium':mpct>0?'miss-low':'miss-zero';
       const flags = [];
       if (c.is_identifier) flags.push('<span class="flag-chip flag-id">🔑 ID</span>');
       if (c.is_constant)   flags.push('<span class="flag-chip flag-const">⚠ CONST</span>');
-      if (mpct > 30)       flags.push('<span class="flag-chip flag-miss">⚠ HIGH MISS</span>');
-      if (!c.is_identifier && !c.is_constant && mpct===0) flags.push('<span class="flag-chip flag-ok">✓ OK</span>');
+      if (mpct > 30)       flags.push('<span class="flag-chip flag-miss">⚠ MISS</span>');
+      if (opct > 10)       flags.push('<span class="flag-chip flag-miss">⚠ OUTLIER</span>');
+      if (!c.is_identifier && !c.is_constant && mpct===0 && opct<=10) flags.push('<span class="flag-chip flag-ok">✓ OK</span>');
       const samples = (c.sample_values || []).slice(0,3).map(v=>`<code style="font-size:10px;background:#f2ebe0;padding:1px 5px;border-radius:3px">${v}</code>`).join(' ');
       return `<tr>
-        <td style="font-weight:600;color:#1a1208">${c.name}</td>
-        <td class="mono-cell">${c.dtype}</td>
+        <td style="font-weight:700;color:#1a1208">${c.name}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${catColor[cat]||'#888'}22;color:${catColor[cat]||'#888'}">${cat}</span></td>
+        <td class="mono-cell" style="font-size:10px">${c.dtype}</td>
         <td class="mono-cell">${c.unique_values}</td>
-        <td class="mono-cell ${c.missing_count>0?'':''}">
-          <span style="color:${c.missing_count>0?'#c0160f':'#1a7a3c'};font-weight:600">${c.missing_count}</span>
-        </td>
         <td>
           <div class="miss-pct-bar-wrap">
             <div class="miss-pct-bar-bg"><div class="miss-pct-bar ${barClass}" style="width:${Math.min(mpct,100)}%"></div></div>
             <span class="mono-cell" style="font-size:10px">${mpct.toFixed(1)}%</span>
           </div>
         </td>
+        <td class="mono-cell" style="color:${opct>10?'#c0160f':'#1a7a3c'};font-weight:600">${opct.toFixed(1)}%</td>
+        <td class="mono-cell" style="color:${Math.abs(skew)>1?'#b07a10':'#5a4a35'}">${skew.toFixed(2)}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${riskColor[risk]}22;color:${riskColor[risk]}">${risk}</span></td>
         <td>${flags.join('')}</td>
         <td>${samples}</td>
       </tr>`;
     }).join('');
+
+    // Correlation Analysis
+    const corr = profile.correlation_analysis || {};
+    const corrPairs = corr.high_correlation_pairs || [];
+    if (corrPairs.length > 0) {
+      document.getElementById('correlation-card').style.display = '';
+      document.getElementById('correlation-list').innerHTML = corrPairs.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--cream);border-radius:6px;margin-bottom:6px;border:1px solid var(--cream-border)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <code style="font-size:11px;background:var(--orange-pale);padding:2px 8px;border-radius:4px;color:var(--orange)">${p.col1}</code>
+            <i class="fa fa-arrows-left-right" style="color:var(--text-light);font-size:10px"></i>
+            <code style="font-size:11px;background:var(--ask-pale);padding:2px 8px;border-radius:4px;color:var(--ask)">${p.col2}</code>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${p.correlation>0.95?'#c0160f':'#b07a10'}">${(p.correlation*100).toFixed(1)}%</span>
+        </div>`).join('');
+    }
+
+    // Feature Importance
+    const fi = profile.feature_importance || {};
+    if (fi.important && (fi.important.length > 0 || fi.low_importance.length > 0)) {
+      document.getElementById('feature-importance-card').style.display = '';
+      setEl('fi-target', fi.target_used || 'last column');
+      const renderFI = (items, color) => items.map(f => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--cream);border-radius:5px;margin-bottom:5px;border:1px solid var(--cream-border)">
+          <span style="font-size:12px;font-weight:600;color:#1a1208">${f.column}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:80px;height:5px;background:var(--cream-mid);border-radius:3px;overflow:hidden">
+              <div style="width:${Math.min(f.score*100,100)}%;height:100%;background:${color};border-radius:3px"></div>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-light)">${f.score.toFixed(3)}</span>
+          </div>
+        </div>`).join('');
+      document.getElementById('fi-important').innerHTML = fi.important.length ? renderFI(fi.important, 'var(--green)') : '<div style="color:var(--text-light);font-size:12px">None detected</div>';
+      document.getElementById('fi-low').innerHTML = fi.low_importance.length ? renderFI(fi.low_importance, 'var(--text-light)') : '<div style="color:var(--text-light);font-size:12px">None</div>';
+    }
 
     // Missing bars chart
     const missingCols = mis.columns_with_missing || [];
@@ -2203,6 +2336,60 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
 
   /* ─── RENDER: RECOMMENDATIONS ─── */
   function renderRecommendations(rec) {
+    // Data Issues
+    const dataIssues = rec.data_issues || [];
+    if (dataIssues.length > 0) {
+      document.getElementById('data-issues-card').style.display = '';
+      const issColors = { high:'var(--red)', medium:'var(--orange)', low:'var(--ask)' };
+      const issBgs    = { high:'var(--red-pale)', medium:'var(--orange-pale)', low:'var(--ask-pale)' };
+      document.getElementById('data-issues-list').innerHTML = dataIssues.map(i => `
+        <div style="padding:12px 16px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${issColors[i.severity]||'#888'};background:${issBgs[i.severity]||'#f5f5f5'}">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${issColors[i.severity]}">${i.severity}</span>
+            <span style="font-size:13px;font-weight:600;color:#1a1208">${i.issue}</span>
+          </div>
+          ${i.affected_columns?.length ? `<div style="font-size:11px;color:var(--text-light);margin-bottom:3px">Columns: ${i.affected_columns.map(col=>`<code style="background:rgba(0,0,0,0.05);padding:1px 5px;border-radius:3px">${col}</code>`).join(' ')}</div>` : ''}
+          <div style="font-size:12px;color:var(--text-mid)">Impact: ${i.impact}</div>
+        </div>`).join('');
+    }
+
+    // Feature Importance Notes from AI
+    const fiNotes = rec.feature_importance_notes || [];
+    if (fiNotes.length > 0) {
+      document.getElementById('fi-notes-card').style.display = '';
+      const impColors = { high:'var(--green)', medium:'var(--orange)', low:'var(--text-light)' };
+      document.getElementById('fi-notes-list').innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${fiNotes.map(f => `
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:var(--cream);border:1px solid var(--cream-border)">
+              <span style="width:8px;height:8px;border-radius:50%;background:${impColors[f.importance]||'#888'};flex-shrink:0"></span>
+              <span style="font-size:12px;font-weight:600;color:#1a1208">${f.column}</span>
+              <span style="font-size:10px;color:var(--text-light)">${f.importance}</span>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    // Before vs After
+    const baList = rec.before_after_summary || [];
+    if (baList.length > 0) {
+      document.getElementById('before-after-card').style.display = '';
+      document.getElementById('before-after-list').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+          ${baList.map(b => `
+            <div style="padding:12px;background:var(--cream);border-radius:8px;border:1px solid var(--cream-border)">
+              <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${b.metric}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px;font-weight:700;color:var(--red)">${b.before}</span>
+                <i class="fa fa-arrow-right" style="color:var(--text-light);font-size:10px"></i>
+                <span style="font-size:14px;font-weight:700;color:var(--green)">${b.after}</span>
+              </div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    // Render manual column selector
+    renderManualColSelector(state.profile);
+
     // Source badge
     const srcBadge = document.getElementById('rec-source-badge');
     if (rec.source === 'rule_based') {
@@ -2869,6 +3056,77 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
     }
   }
 
+  /* ─── MANUAL COLUMN REMOVAL ─── */
+  let _manualDropCols = new Set();
+
+  function renderManualColSelector(profile) {
+    const grid = document.getElementById('manual-col-grid');
+    if (!grid || !profile) return;
+    _manualDropCols.clear();
+
+    // Pre-select AI-recommended drop columns
+    const aiDropped = new Set((state.recommendations?.columns_to_drop || []).map(d => d.column));
+
+    grid.innerHTML = (profile.column_analysis || []).map(col => {
+      const isAiDrop   = aiDropped.has(col.name);
+      const risk       = col.risk_level || 'Low';
+      const riskColor  = { Low:'var(--green)', Medium:'var(--orange)', High:'var(--red)' };
+      const cat        = col.column_category || 'Numeric';
+
+      if (isAiDrop) _manualDropCols.add(col.name);
+
+      return `<div class="col-chip ${isAiDrop ? 'selected' : ''}" id="chip-${col.name.replace(/[^a-zA-Z0-9]/g,'_')}"
+        onclick="App.toggleColumn('${col.name.replace(/'/g,"\'")}')"
+        title="Category: ${cat} | Risk: ${risk} | Missing: ${col.missing_percentage.toFixed(1)}%">
+        <span class="chip-name">${col.name}</span>
+        <span class="chip-meta">${cat}</span>
+        <span class="chip-risk" style="background:${riskColor[risk]}22;color:${riskColor[risk]}">${risk}</span>
+        <i class="fa fa-xmark chip-x"></i>
+      </div>`;
+    }).join('');
+
+    updateColCount();
+  }
+
+  function toggleColumn(colName) {
+    const safeId = colName.replace(/[^a-zA-Z0-9]/g,'_');
+    const chip   = document.getElementById(`chip-${safeId}`);
+    if (!chip) return;
+
+    if (_manualDropCols.has(colName)) {
+      _manualDropCols.delete(colName);
+      chip.classList.remove('selected');
+    } else {
+      _manualDropCols.add(colName);
+      chip.classList.add('selected');
+    }
+    updateColCount();
+  }
+
+  function selectAllColumns() {
+    (state.profile?.column_analysis || []).forEach(col => {
+      _manualDropCols.add(col.name);
+      const chip = document.getElementById(`chip-${col.name.replace(/[^a-zA-Z0-9]/g,'_')}`);
+      if (chip) chip.classList.add('selected');
+    });
+    updateColCount();
+  }
+
+  function clearColumnSelection() {
+    _manualDropCols.clear();
+    document.querySelectorAll('.col-chip').forEach(c => c.classList.remove('selected'));
+    updateColCount();
+  }
+
+  function updateColCount() {
+    const el = document.getElementById('manual-col-count');
+    if (!el) return;
+    const n = _manualDropCols.size;
+    el.textContent = n === 0 ? 'No columns selected for removal'
+                   : `${n} column${n>1?'s':''} selected for removal: ${[..._manualDropCols].join(', ')}`;
+    el.style.color = n > 0 ? 'var(--red)' : 'var(--text-light)';
+  }
+
   /* ─── PUBLIC API ─── */
   return {
     init,
@@ -2888,6 +3146,9 @@ body{font-family:'DM Sans',sans-serif;background:#faf6f0;color:#2c2010;font-size
     testConnection,
     quickTestApi,
     loadPreview,
+    toggleColumn,
+    selectAllColumns,
+    clearColumnSelection,
   };
 
 })();
