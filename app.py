@@ -114,7 +114,11 @@ class DatasetProfiler:
             num_df = self.df.select_dtypes(include=[np.number])
             if num_df.shape[1] < 2:
                 return {'high_correlation_pairs': [], 'drop_suggestions': []}
+            # Limit columns to avoid memory spike on wide datasets
+            if num_df.shape[1] > 30:
+                num_df = num_df.iloc[:, :30]
             corr = num_df.corr().abs()
+            del num_df
             pairs = []
             drop_suggestions = []
             seen = set()
@@ -262,10 +266,15 @@ class DatasetProfiler:
 
     def _get_statistical_summary(self) -> Dict:
         num_cols = self.df.select_dtypes(include=[np.number]).columns
-        if len(num_cols):
+        if len(num_cols) == 0:
+            return {}
+        # Limit to first 20 numeric columns to save memory
+        num_cols = num_cols[:20]
+        try:
             return {col: {k: float(v) for k, v in stats.items()}
                     for col, stats in self.df[num_cols].describe().to_dict().items()}
-        return {}
+        except Exception:
+            return {}
 
     def _identify_issues(self) -> List[Dict]:
         issues = []
@@ -736,9 +745,20 @@ def upload_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
-        df      = pd.read_csv(filepath) if filename.lower().endswith('.csv') else pd.read_excel(filepath)
-        profile = DatasetProfiler(df).analyze()
+        # Memory-efficient reading
+        if filename.lower().endswith('.csv'):
+            df = pd.read_csv(filepath, low_memory=True)
+        else:
+            df = pd.read_excel(filepath)
+
+        # Free memory: sample large datasets for profiling only
+        profile_df = df.sample(min(len(df), 10000), random_state=42) if len(df) > 10000 else df
+        profile = DatasetProfiler(profile_df).analyze()
         profile['filename'] = filename
+        profile['basic_info']['rows'] = len(df)  # show real row count
+        profile['basic_info']['duplicate_rows'] = int(df.duplicated().sum())
+        del profile_df
+        import gc; gc.collect()
         return jsonify({'success': True, 'profile': profile})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -770,8 +790,14 @@ def preprocess_dataset():
         fname   = data.get('filename')
         rec     = data.get('recommendations')
         fpath   = os.path.join(UPLOAD_FOLDER, fname)
-        df      = pd.read_csv(fpath) if fname.lower().endswith('.csv') else pd.read_excel(fpath)
+        if fname.lower().endswith('.csv'):
+            df = pd.read_csv(fpath, low_memory=True)
+        else:
+            df = pd.read_excel(fpath)
+
         dp = DataPreprocessor(df, rec)
+        del df  # free original before processing
+        import gc; gc.collect()
         train, val, test, log = dp.apply_all_preprocessing()
         base = fname.rsplit('.', 1)[0]
 
@@ -788,11 +814,14 @@ def preprocess_dataset():
             val_ratio          = split_cfg['validation']/(split_cfg['train']+split_cfg['validation'])
             train_pre, val_pre = train_test_split(tv_pre, test_size=val_ratio, random_state=42)
             train_pre.to_csv(os.path.join(PROCESSED_FOLDER, f"{base}_preview.csv"), index=False)
+        shapes = {'train': list(train.shape), 'val': list(val.shape), 'test': list(test.shape)}
+        del train, val, test, dp
+        import gc; gc.collect()
         return jsonify({'success': True,
                         'train_file': f"{base}_train.csv",
                         'val_file':   f"{base}_val.csv",
                         'test_file':  f"{base}_test.csv",
-                        'shapes': {'train': list(train.shape), 'val': list(val.shape), 'test': list(test.shape)},
+                        'shapes': shapes,
                         'log': log})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
