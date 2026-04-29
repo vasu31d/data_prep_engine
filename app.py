@@ -10,6 +10,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 import warnings
 warnings.filterwarnings('ignore')
+import psutil as _psutil
+
+def _ram_mb(tag: str) -> None:
+    """Print current process RSS memory. Safe no-op if psutil unavailable."""
+    try:
+        mb = _psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
+        print(f"[RAM] {tag}: {mb:.2f} MB", flush=True)
+    except Exception:
+        pass
 
 # ════════════════════════════════════════════════════════════════════════════
 #  CONFIGURATION
@@ -742,7 +751,9 @@ def upload_file():
         file.save(filepath)
 
         df      = _load_file(filepath)          # dtype-optimised load
+        _ram_mb("After file load")
         profile = DatasetProfiler(df).analyze()
+        _ram_mb("After profiling")
         del df                                   # free immediately
         gc.collect()
 
@@ -789,6 +800,7 @@ def preprocess_dataset():
         dp = DataPreprocessor(df, rec)
         del df   # original reference gone; dp.df is the only copy
         gc.collect()
+        _ram_mb("After file load")
 
         # 3. Pipeline steps
         dp._normalise_booleans()
@@ -797,6 +809,7 @@ def preprocess_dataset():
         dp._handle_missing_values()
         dp._encode_categoricals()
         dp._handle_outliers()
+        _ram_mb("After encoding+outliers")
 
         # 4. Save 20-row preview BEFORE scaling (no full copy — just head)
         dp.df.head(20).to_csv(
@@ -804,6 +817,7 @@ def preprocess_dataset():
 
         # 5. Scale in-place
         dp._scale_features()
+        _ram_mb("After scaling")
 
         # 6. Split once, write each split immediately, then free it
         split_cfg = rec.get('data_split',
@@ -818,6 +832,7 @@ def preprocess_dataset():
         train, val = train_test_split(tv, test_size=val_ratio, random_state=42)
         del tv
         gc.collect()
+        _ram_mb("After train_test_split")
 
         shapes = {
             'train': list(train.shape),
@@ -841,6 +856,7 @@ def preprocess_dataset():
         del test
         del dp
         gc.collect()
+        _ram_mb("Before response return")
 
         return jsonify({
             'success':    True,
